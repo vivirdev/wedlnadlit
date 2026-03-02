@@ -133,7 +133,33 @@ export default function WeddingSimulator() {
                 setNadavMomGift(configRes.data.nadav_mom_gift);
             }
             if (expensesRes.data) setFixedExpenses(expensesRes.data);
-            if (checklistRes.data) setChecklistItems(checklistRes.data);
+
+            if (checklistRes.data && checklistRes.data.length > 0) {
+                setChecklistItems(checklistRes.data);
+            } else if (checklistRes.data && checklistRes.data.length === 0) {
+                // Seed default checklist for new users
+                const defaultChecklist = [
+                    { text: 'סגירת אולם וחתימת חוזה', category: '12+ חודשים' },
+                    { text: 'סגירת צלם/ית', category: '12+ חודשים' },
+                    { text: 'סגירת DJ', category: '12+ חודשים' },
+                    { text: 'בחירת שמלת כלה', category: '6 חודשים' },
+                    { text: 'הזמנת הזמנות', category: '6 חודשים' },
+                    { text: 'סגירת עיצוב ופרחים', category: '6 חודשים' },
+                    { text: 'רכישת טבעות', category: '6 חודשים' },
+                    { text: 'סגירת מאפרת ושיער', category: '3 חודשים' },
+                    { text: 'סידורי רבנות ומקווה', category: '3 חודשים' },
+                    { text: 'אישורי הגעה סבב ראשון', category: 'חודש לפני' },
+                    { text: 'סידור הושבה', category: 'חודש לפני' },
+                    { text: 'הכנת מעטפות טיפים', category: 'שבוע לפני' },
+                    { text: 'אישור סופי עם כל הספקים', category: 'שבוע לפני' },
+                    { text: 'אריזת תיק ליום החתונה', category: 'שבוע לפני' }
+                ].map(item => ({ ...item, config_id: id, done: false }));
+
+                const { data: newChecklist } = await supabase.from('checklist').insert(defaultChecklist).select();
+                if (newChecklist) {
+                    setChecklistItems(newChecklist);
+                }
+            }
         } catch (e) {
             console.error(e);
         }
@@ -346,33 +372,46 @@ export default function WeddingSimulator() {
     // Handlers
     const addExpense = async () => {
         if (newExpenseName && newExpenseAmount && configId) {
-            await supabase.from('expenses').insert({
+            const tempId = Date.now();
+            setFixedExpenses(prev => [...prev, {
+                id: tempId,
+                name: newExpenseName,
+                amount: Number(newExpenseAmount),
+                advance: Number(newExpenseAdvance) || 0,
+                paid: false
+            }]);
+            const payload = {
                 config_id: configId,
                 name: newExpenseName,
                 amount: Number(newExpenseAmount),
                 advance: Number(newExpenseAdvance) || 0
-            });
+            };
             setNewExpenseName('');
             setNewExpenseAmount('');
             setNewExpenseAdvance('');
+
+            await supabase.from('expenses').insert(payload);
             await loadData(configId);
         }
     };
 
     const removeExpense = async (id: number) => {
         if (!configId) return;
+        setFixedExpenses(prev => prev.filter(e => e.id !== id));
         await supabase.from('expenses').delete().eq('id', id);
         await loadData(configId);
     };
 
     const updateExpense = async (id: number, field: string, value: string | number) => {
         if (!configId) return;
+        setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: Number(value) } : e));
         await supabase.from('expenses').update({ [field]: Number(value) }).eq('id', id);
         await loadData(configId);
     };
 
     const toggleExpensePaid = async (id: number) => {
         if (!configId) return;
+        setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, paid: !e.paid } : e));
         const expense = fixedExpenses.find(e => e.id === id);
         if (expense) {
             await supabase.from('expenses').update({ paid: !expense.paid }).eq('id', id);
@@ -382,25 +421,35 @@ export default function WeddingSimulator() {
 
     const addChecklistItem = async () => {
         if (newChecklistText.trim() && configId) {
-            await supabase.from('checklist').insert({
+            const tempId = Date.now();
+            setChecklistItems(prev => [...prev, {
+                id: tempId,
+                text: newChecklistText,
+                category: 'כללי',
+                done: false
+            }]);
+            const payload = {
                 config_id: configId,
                 text: newChecklistText,
                 category: 'כללי', // Default category
                 done: false
-            });
+            };
             setNewChecklistText('');
+            await supabase.from('checklist').insert(payload);
             await loadData(configId);
         }
     };
 
     const removeChecklistItem = async (id: number) => {
         if (!configId) return;
+        setChecklistItems(prev => prev.filter(i => i.id !== id));
         await supabase.from('checklist').delete().eq('id', id);
         await loadData(configId);
     };
 
     const toggleChecklistItem = async (id: number) => {
         if (!configId) return;
+        setChecklistItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i));
         const item = checklistItems.find(i => i.id === id);
         if (item) {
             await supabase.from('checklist').update({ done: !item.done }).eq('id', id);
