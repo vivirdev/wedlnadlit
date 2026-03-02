@@ -307,6 +307,42 @@ export default function WeddingSimulator() {
     const checklistProgress = checklistTotal > 0 ? (checklistDone / checklistTotal) * 100 : 0;
     const checklistCategories = [...new Set(smartChecklistItems.map(i => i.category))];
 
+    const [isMigrating, setIsMigrating] = useState(false);
+
+    const handleMigrateLocalData = async () => {
+        if (!configId) return;
+        setIsMigrating(true);
+        try {
+            const localExpensesStr = window.localStorage.getItem('fixedExpenses');
+            if (localExpensesStr) {
+                const localExpenses = JSON.parse(localExpensesStr);
+                // Clear existing remote expenses to prevent duplicates
+                await supabase.from('expenses').delete().eq('config_id', configId);
+
+                // Insert local expenses sequentially
+                for (const exp of localExpenses) {
+                    await supabase.from('expenses').insert({
+                        config_id: configId,
+                        name: exp.name,
+                        amount: Number(exp.amount) || 0,
+                        advance: Number(exp.advance) || 0,
+                        paid: exp.paid || false
+                    });
+                }
+                window.localStorage.removeItem('fixedExpenses'); // Remove from local so button disappears
+                await loadData(configId); // Refresh state
+                alert('כל ההוצאות הועברו בהצלחה לענן! ☁️');
+            } else {
+                alert('לא נמצאו הוצאות שמורות בזיכרון המקומי.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('קרתה שגיאה בהעברה. בדוק קונסול.');
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
     // Handlers
     const addExpense = async () => {
         if (newExpenseName && newExpenseAmount && configId) {
@@ -514,6 +550,25 @@ export default function WeddingSimulator() {
                         <span className="sm:hidden relative z-10">חכם</span>
                     </button>
                 </motion.div>
+
+                {window.localStorage.getItem('fixedExpenses') && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-3xl p-4 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-3 text-amber-800">
+                            <Wallet size={24} />
+                            <div>
+                                <p className="font-semibold">מצאנו הוצאות ששמרת בעבר במכשיר הזה!</p>
+                                <p className="text-sm font-medium text-amber-700/80">לחץ אן כדי להעביר אותן למסד הנתונים בענן החדש.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleMigrateLocalData}
+                            disabled={isMigrating}
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-6 rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                        >
+                            {isMigrating ? 'מעביר...' : 'העבר לענן'}
+                        </button>
+                    </motion.div>
+                )}
 
                 <AnimatePresence mode="wait">
                     {/* TAB CONTENT: DASHBOARD */}
