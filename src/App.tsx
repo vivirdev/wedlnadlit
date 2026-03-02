@@ -355,21 +355,28 @@ export default function WeddingSimulator() {
             setNewExpenseName('');
             setNewExpenseAmount('');
             setNewExpenseAdvance('');
+            await loadData(configId);
         }
     };
 
     const removeExpense = async (id: number) => {
+        if (!configId) return;
         await supabase.from('expenses').delete().eq('id', id);
+        await loadData(configId);
     };
 
     const updateExpense = async (id: number, field: string, value: string | number) => {
+        if (!configId) return;
         await supabase.from('expenses').update({ [field]: Number(value) }).eq('id', id);
+        await loadData(configId);
     };
 
     const toggleExpensePaid = async (id: number) => {
+        if (!configId) return;
         const expense = fixedExpenses.find(e => e.id === id);
         if (expense) {
             await supabase.from('expenses').update({ paid: !expense.paid }).eq('id', id);
+            await loadData(configId);
         }
     };
 
@@ -382,17 +389,22 @@ export default function WeddingSimulator() {
                 done: false
             });
             setNewChecklistText('');
+            await loadData(configId);
         }
     };
 
     const removeChecklistItem = async (id: number) => {
+        if (!configId) return;
         await supabase.from('checklist').delete().eq('id', id);
+        await loadData(configId);
     };
 
     const toggleChecklistItem = async (id: number) => {
+        if (!configId) return;
         const item = checklistItems.find(i => i.id === id);
         if (item) {
             await supabase.from('checklist').update({ done: !item.done }).eq('id', id);
+            await loadData(configId);
         }
     };
 
