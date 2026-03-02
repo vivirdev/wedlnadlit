@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: "Polin", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@font-face {
+    font-family: "Polin";
+    src: url("/fonts/Polin-Regular.woff2") format("woff2"),
+        url("/fonts/Polin-Regular.woff") format("woff"),
+        url("/fonts/Polin-Regular.ttf") format("truetype");
+    font-weight: 400;
+    /* Regular */
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Polin";
+    src: url("/fonts/Polin-Semibold.woff2") format("woff2"),
+        url("/fonts/Polin-Semibold.woff") format("woff"),
+        url("/fonts/Polin-Semibold.ttf") format("truetype");
+    font-weight: 600;
+    /* Semibold */
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Polin";
+    src: url("/fonts/Polin-Extrabold.woff2") format("woff2"),
+        url("/fonts/Polin-Extrabold.woff") format("woff"),
+        url("/fonts/Polin-Extrabold.ttf") format("truetype");
+    font-weight: 800;
+    /* Extrabold */
+    font-style: normal;
+    font-display: swap;
+}
+
+@layer base {
+    html {
+        font-family: var(--font-sans);
+    }
+}

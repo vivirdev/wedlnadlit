@@ -1,0 +1,1175 @@
+import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calculator, Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, Target, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock } from 'lucide-react';
+import { supabase } from './lib/supabase';
+
+interface Expense {
+    id: number;
+    name: string;
+    amount: number | string;
+    advance: number | string;
+    paid?: boolean;
+}
+
+interface ChecklistItem {
+    id: number;
+    text: string;
+    done: boolean;
+    category: string;
+}
+
+export default function WeddingSimulator() {
+    // Auth State
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [passwordInput, setPasswordInput] = useState('');
+    const [authError, setAuthError] = useState('');
+    const [configId, setConfigId] = useState<number | null>(null);
+
+    // Check Local Storage for active session on mount
+    useEffect(() => {
+        const checkAuth = async () => {
+            const savedConfigId = localStorage.getItem('weddingConfigId');
+            if (savedConfigId) {
+                setConfigId(Number(savedConfigId));
+                setIsAuthenticated(true);
+            }
+            setAuthLoading(false);
+        };
+        checkAuth();
+    }, []);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAuthLoading(true);
+        setAuthError('');
+
+        try {
+            // Find config with matching password
+            const { data, error } = await supabase
+                .from('wedding_config')
+                .select('id')
+                .eq('password_hash', passwordInput)
+                .single();
+
+            if (error || !data) {
+                // If it doesn't exist, maybe create it? For simplicity, we'll assume they created it manually or we auto-create on first try if no records exist.
+                // Let's create a new one if NO configs exist at all (first run).
+                const { count } = await supabase.from('wedding_config').select('*', { count: 'exact', head: true });
+                if (count === 0) {
+                    const { data: newData, error: insertError } = await supabase
+                        .from('wedding_config')
+                        .insert({ password_hash: passwordInput })
+                        .select()
+                        .single();
+
+                    if (insertError) throw insertError;
+                    setConfigId(newData.id);
+                    localStorage.setItem('weddingConfigId', newData.id.toString());
+                    setIsAuthenticated(true);
+                } else {
+                    setAuthError('סיסמה שגויה');
+                }
+            } else {
+                setConfigId(data.id);
+                localStorage.setItem('weddingConfigId', data.id.toString());
+                setIsAuthenticated(true);
+            }
+        } catch (err: any) {
+            setAuthError(err.message || 'שגיאה בהתחברות');
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    // Navigation State
+    const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'income', 'expenses'
+
+    // Wedding Date Setup
+    const weddingDate = new Date('2026-06-23');
+    const daysLeft = Math.ceil((weddingDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+    // State for dynamic inputs (now with RSVP logic)
+    const [invitedGuests, setInvitedGuests] = useState(300);
+    const [noShowPercent, setNoShowPercent] = useState(15);
+    const [avgGift, setAvgGift] = useState(400);
+
+    // Venue Advance Payments
+    const [venueAdvance1Percent] = useState(15);
+    const [venueAdvance2Percent] = useState(35);
+    // User stated both advances are based on the 225 guests @ 610 fixed amount
+    const venueAdvanceFixedGuests = 225;
+    const venueAdvanceFixedRate = 610;
+
+    // Safety Buffer State
+    const [useSafetyBuffer, setSafetyBuffer] = useState(true);
+
+    // Savings Tracker
+    const [monthlySaving, setMonthlySaving] = useState(3000);
+    const [nadavMomGift, setNadavMomGift] = useState<number>(40000);
+
+    // Array States
+    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+    const [newChecklistText, setNewChecklistText] = useState('');
+    const [fixedExpenses, setFixedExpenses] = useState<Expense[]>([]);
+
+    const [newExpenseName, setNewExpenseName] = useState('');
+    const [newExpenseAmount, setNewExpenseAmount] = useState('');
+    const [newExpenseAdvance, setNewExpenseAdvance] = useState('');
+
+    const loadData = async (id: number) => {
+        try {
+            const [configRes, expensesRes, checklistRes] = await Promise.all([
+                supabase.from('wedding_config').select('*').eq('id', id).single(),
+                supabase.from('expenses').select('*').eq('config_id', id).order('id'),
+                supabase.from('checklist').select('*').eq('config_id', id).order('id')
+            ]);
+            if (configRes.data) {
+                setInvitedGuests(configRes.data.invited_guests);
+                setNoShowPercent(configRes.data.no_show_percent);
+                setAvgGift(configRes.data.avg_gift);
+                setMonthlySaving(configRes.data.monthly_saving);
+                setSafetyBuffer(configRes.data.use_safety_buffer);
+                setNadavMomGift(configRes.data.nadav_mom_gift);
+            }
+            if (expensesRes.data) setFixedExpenses(expensesRes.data);
+            if (checklistRes.data) setChecklistItems(checklistRes.data);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        if (isAuthenticated && configId) {
+            loadData(configId);
+
+            // Subscribe to real-time changes
+            const channel = supabase.channel('schema-db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'wedding_config', filter: `id=eq.${configId}` }, () => loadData(configId))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `config_id=eq.${configId}` }, () => loadData(configId))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `config_id=eq.${configId}` }, () => loadData(configId))
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        }
+    }, [isAuthenticated, configId]);
+
+    // Update remote config helper
+    const updateConfig = async (field: string, value: any) => {
+        if (!configId) return;
+        try {
+            await supabase.from('wedding_config').update({ [field]: value }).eq('id', configId);
+        } catch (e) { console.error(e); }
+    };
+
+    // Derived state for actual guests
+    const guests = Math.round(invitedGuests * (1 - (noShowPercent / 100)));
+
+    // Calculations
+    const calculations = useMemo(() => {
+        // 1. Calculate Venue Cost based on Contract Tiers
+        let venueCost = 0;
+        let costBreakdown = '';
+
+        if (guests < 250) {
+            venueCost = guests * 610;
+            costBreakdown = `${guests} אורחים לפי 610 ₪ למנה`;
+        } else {
+            const baseCost = 250 * 586;
+            const extraGuests = guests - 250;
+            const extraCost = extraGuests * 555;
+            venueCost = baseCost + extraCost;
+            costBreakdown = `250 ראשונים לפי 586 ₪ (${baseCost.toLocaleString()} ₪) + ${extraGuests} נוספים לפי 555 ₪ (${extraCost.toLocaleString()} ₪)`;
+        }
+
+        const venueBaseContractValue = venueAdvanceFixedGuests * venueAdvanceFixedRate;
+        const venueAdvance1 = venueBaseContractValue * (venueAdvance1Percent / 100);
+        const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
+        const venueAdvance = venueAdvance1 + venueAdvance2;
+
+        // 2. Fixed Expenses & Advances
+        const baseFixed = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.amount), 0);
+        const totalFixedAdvances = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.advance || 0), 0);
+
+        // Calculate buffer (10% of fixed expenses if enabled)
+        const safetyBufferAmount = useSafetyBuffer ? baseFixed * 0.10 : 0;
+        const totalFixed = baseFixed + safetyBufferAmount;
+
+        // 3. Total Expenses (needed for Lital parents' gift calculation)
+        const totalExpenses = totalFixed + venueCost;
+
+        // 4. Total Parents Gifts
+        // Lital's parents pay the exact remainder of the VENUE cost minus Nadav's mom.
+        const litalParentsGift = Math.max(0, venueCost - nadavMomGift);
+        const totalParentsGift = nadavMomGift + litalParentsGift;
+
+        // 5. Totals & Balances
+        const guestsIncome = guests * avgGift;
+        const totalIncome = guestsIncome + totalParentsGift;
+        const netBalance = totalIncome - totalExpenses;
+
+        // 5. Cash Flow
+        const totalAdvancesPaid = totalFixedAdvances + venueAdvance;
+        const remainingToPay = totalExpenses - totalAdvancesPaid;
+
+        // 6. Smart Insights
+        const costPerGuest = totalExpenses / Math.max(1, guests);
+        const breakEvenAvgGift = Math.max(0, (totalExpenses - totalParentsGift) / Math.max(1, guests));
+
+        // 7. Progress Bar Percentage (Income vs Expenses)
+        const incomeProgress = Math.min((totalIncome / Math.max(1, totalExpenses)) * 100, 100);
+
+        // 8. Scenario Comparison
+        const scenarios = [
+            { label: 'פסימי', avgGift: 300, noShow: 20, color: 'rose' },
+            { label: 'ריאלי', avgGift: avgGift, noShow: noShowPercent, color: 'indigo' },
+            { label: 'אופטימי', avgGift: 500, noShow: 10, color: 'emerald' },
+        ].map(s => {
+            const sGuests = Math.round(invitedGuests * (1 - s.noShow / 100));
+            const sIncome = sGuests * s.avgGift + totalParentsGift;
+            const sBalance = sIncome - totalExpenses;
+            return { ...s, guests: sGuests, income: sIncome, balance: sBalance };
+        });
+
+        // 9. Expense Breakdown by category
+        const expenseCategories = [
+            { name: 'אולם', amount: venueCost, color: '#6366f1' },
+            { name: 'צילום', amount: fixedExpenses.filter(e => ['צלמים', 'צלם מגנטים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#8b5cf6' },
+            { name: 'מוזיקה', amount: fixedExpenses.filter(e => ['דיג', 'רקדנים', 'סקסופוניסט', 'כנר'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#ec4899' },
+            { name: 'לבוש ויופי', amount: fixedExpenses.filter(e => ['שמלות', 'תכשיטים', 'איפור', 'חתן', 'טבעות', 'נעליים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#f59e0b' },
+            { name: 'עיצוב', amount: fixedExpenses.filter(e => e.name.includes('עיצוב')).reduce((s, e) => s + Number(e.amount), 0), color: '#10b981' },
+        ];
+        const categorizedTotal = expenseCategories.reduce((s, c) => s + c.amount, 0);
+        const otherAmount = baseFixed - categorizedTotal + venueCost > 0 ? baseFixed - (categorizedTotal - venueCost) : 0;
+        if (otherAmount > 0) expenseCategories.push({ name: 'אחר', amount: otherAmount, color: '#94a3b8' });
+
+        return {
+            venueCost, venueAdvance1, venueAdvance2, venueAdvance,
+            costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
+            guestsIncome, totalParentsGift, litalParentsGift, totalIncome, netBalance,
+            totalAdvancesPaid, remainingToPay, costPerGuest, breakEvenAvgGift, incomeProgress,
+            scenarios, expenseCategories,
+        };
+    }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent]);
+
+    // Savings Calculations
+    const monthsLeft = Math.max(1, Math.ceil(daysLeft / 30));
+    const totalSavingsByWedding = monthlySaving * monthsLeft;
+    const savingsNeeded = calculations.totalAdvancesPaid; // advances needed before wedding
+    const savingsProgress = Math.min((totalSavingsByWedding / Math.max(1, savingsNeeded)) * 100, 100);
+
+    // Checklist calculations
+    const smartChecklistItems = useMemo(() => {
+        return checklistItems.map(item => {
+            let isDone = item.done;
+            let isLate = false;
+
+            // 1. Auto-Done based on expenses
+            const nameLower = item.text.toLowerCase();
+            const hasMatchedExpense = fixedExpenses.some(exp => {
+                if (exp.paid || Number(exp.advance) > 0) {
+                    const expLower = exp.name.toLowerCase();
+                    if (nameLower.includes('אולם') && expLower.includes('אולם')) return true;
+                    if (nameLower.includes('צלם') && expLower.includes('צלם')) return true;
+                    if (nameLower.includes('דיג') && expLower.includes('דיג')) return true;
+                    if (nameLower.includes('שמל') && expLower.includes('שמל')) return true;
+                    if (nameLower.includes('איפור') && expLower.includes('איפור')) return true;
+                    if (nameLower.includes('טבעו') && expLower.includes('טבעו')) return true;
+                    if (nameLower.includes('חליפ') && (expLower.includes('חליפ') || expLower.includes('חתן'))) return true;
+                    if (nameLower.includes('עיצוב') && expLower.includes('עיצוב')) return true;
+                    if (nameLower.includes('אישור הגעה') && expLower.includes('אישור')) return true;
+                }
+                return false;
+            });
+
+            if (hasMatchedExpense) {
+                isDone = true;
+            }
+
+            // 2. Late deadline logic
+            if (!isDone) {
+                const cat = item.category;
+                if (cat === '12+ חודשים' && daysLeft <= 360) isLate = true;
+                if (cat === '6 חודשים' && daysLeft <= 180) isLate = true;
+                if (cat === '3 חודשים' && daysLeft <= 90) isLate = true;
+                if (cat === 'חודש לפני' && daysLeft <= 30) isLate = true;
+                if (cat === 'שבוע לפני' && daysLeft <= 7) isLate = true;
+            }
+
+            return { ...item, isDone, isLate };
+        });
+    }, [checklistItems, fixedExpenses, daysLeft]);
+
+    const checklistDone = smartChecklistItems.filter(i => i.isDone).length;
+    const checklistTotal = smartChecklistItems.length;
+    const checklistProgress = checklistTotal > 0 ? (checklistDone / checklistTotal) * 100 : 0;
+    const checklistCategories = [...new Set(smartChecklistItems.map(i => i.category))];
+
+    // Handlers
+    const addExpense = async () => {
+        if (newExpenseName && newExpenseAmount && configId) {
+            await supabase.from('expenses').insert({
+                config_id: configId,
+                name: newExpenseName,
+                amount: Number(newExpenseAmount),
+                advance: Number(newExpenseAdvance) || 0
+            });
+            setNewExpenseName('');
+            setNewExpenseAmount('');
+            setNewExpenseAdvance('');
+        }
+    };
+
+    const removeExpense = async (id: number) => {
+        await supabase.from('expenses').delete().eq('id', id);
+    };
+
+    const updateExpense = async (id: number, field: string, value: string | number) => {
+        await supabase.from('expenses').update({ [field]: Number(value) }).eq('id', id);
+    };
+
+    const toggleExpensePaid = async (id: number) => {
+        const expense = fixedExpenses.find(e => e.id === id);
+        if (expense) {
+            await supabase.from('expenses').update({ paid: !expense.paid }).eq('id', id);
+        }
+    };
+
+    const addChecklistItem = async () => {
+        if (newChecklistText.trim() && configId) {
+            await supabase.from('checklist').insert({
+                config_id: configId,
+                text: newChecklistText,
+                category: 'כללי', // Default category
+                done: false
+            });
+            setNewChecklistText('');
+        }
+    };
+
+    const removeChecklistItem = async (id: number) => {
+        await supabase.from('checklist').delete().eq('id', id);
+    };
+
+    const toggleChecklistItem = async (id: number) => {
+        const item = checklistItems.find(i => i.id === id);
+        if (item) {
+            await supabase.from('checklist').update({ done: !item.done }).eq('id', id);
+        }
+    };
+
+    if (authLoading) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans" dir="rtl">
+                <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-slate-100 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-50 blur-3xl rounded-full -ml-16 -mb-16 pointer-events-none"></div>
+
+                    <div className="relative z-10">
+                        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                            <Lock size={32} strokeWidth={1.5} />
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-800 text-center mb-2 tracking-tight">התחברות לחתונה</h1>
+                        <p className="text-slate-500 text-center mb-8 text-sm">הכניסו את הסיסמה המשותפת שלכם כדי לצפות ולערוך מקול מקום</p>
+
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div>
+                                <input
+                                    type="password"
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
+                                    placeholder="הקלד סיסמה..."
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-base font-medium text-center text-slate-800 outline-none transition-all"
+                                />
+                            </div>
+                            {authError && <p className="text-rose-500 text-sm font-medium text-center bg-rose-50 py-2 rounded-lg">{authError}</p>}
+                            <button
+                                type="submit"
+                                disabled={authLoading || !passwordInput}
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-indigo-200"
+                            >
+                                {authLoading ? 'מתחבר...' : 'היכנס'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const formatMoney = (amount: number) => {
+        return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(amount);
+    };
+
+    return (
+        <div dir="rtl" className="min-h-screen bg-slate-50 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-rose-50 p-4 md:p-8 font-sans text-slate-800 selection:bg-indigo-200">
+            <div className="max-w-5xl mx-auto space-y-6">
+
+                {/* Top Header - Always Visible */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                >
+                    <div>
+                        <h1 className="text-3xl font-semibold text-slate-900 flex items-center gap-3 tracking-tight">
+                            <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                                <Calculator size={24} />
+                            </div>
+                            חתונה חכמה: ליטל ונדב
+                        </h1>
+                        <p className="text-slate-500 mt-2 font-medium text-lg">מערכת ניהול תקציב, תזרים ותחזיות</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 px-5 py-4 rounded-2xl border border-indigo-100 flex items-center gap-4 shadow-sm">
+                        <div className="bg-white p-2 rounded-xl shadow-sm text-indigo-500">
+                            <CalendarHeart size={24} />
+                        </div>
+                        <div>
+                            <p className="text-xs text-indigo-600 font-medium tracking-wide">23 ביוני 2026 • מערבה</p>
+                            <p className="text-sm font-semibold text-indigo-900">עוד {daysLeft} ימים לחתונה!</p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Pinned Summary Dashboard - ALWAYS VISIBLE */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
+                >
+                    <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow">
+                        <p className="text-xs md:text-sm font-medium text-slate-500 mb-2 tracking-wide">הכנסות (כולל הורים)</p>
+                        <p className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white relative overflow-hidden group">
+                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-b from-amber-400 to-amber-500"></div>}
+                        <p className="text-xs md:text-sm font-medium text-slate-500 mb-2 tracking-wide">סה"כ הוצאות</p>
+                        <p className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight group-hover:scale-[1.02] transition-transform origin-right">{formatMoney(calculations.totalExpenses)}</p>
+                    </div>
+                    <div className="bg-indigo-50/80 backdrop-blur-xl rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-indigo-100">
+                        <p className="text-xs md:text-sm font-medium text-indigo-700 mb-2 tracking-wide">שולם מראש (מקדמות)</p>
+                        <p className="text-2xl md:text-3xl font-semibold text-indigo-900 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
+                    </div>
+                    <div className={`rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all ${calculations.netBalance >= 0 ? 'bg-emerald-50/80 border border-emerald-100' : 'bg-rose-50/80 border border-rose-100'} backdrop-blur-xl`}>
+                        <p className={`text-xs md:text-sm font-medium mb-2 tracking-wide ${calculations.netBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            שורה תחתונה (רווח)
+                        </p>
+                        <div className="flex items-center gap-2">
+                            {calculations.netBalance >= 0 ? <TrendingUp className="text-emerald-500" size={24} /> : <TrendingDown className="text-rose-500" size={24} />}
+                            <p className={`text-2xl md:text-3xl font-semibold tracking-tight ${calculations.netBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {calculations.netBalance > 0 ? '+' : ''}{formatMoney(calculations.netBalance)}
+                            </p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Custom Tabs Navigation */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-sm border border-white/80 p-2 flex flex-wrap gap-2 sticky top-4 z-50"
+                >
+                    <button
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-3xl font-medium transition-all duration-300 relative ${activeTab === 'dashboard' ? 'text-indigo-700' : 'text-slate-500 hover:bg-white/50'}`}
+                    >
+                        {activeTab === 'dashboard' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white shadow-sm rounded-3xl border border-indigo-50" />}
+                        <LayoutDashboard size={20} className="relative z-10" />
+                        <span className="hidden sm:inline relative z-10">סקירה ותובנות</span>
+                        <span className="sm:hidden relative z-10">סקירה</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('income')}
+                        className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-3xl font-medium transition-all duration-300 relative ${activeTab === 'income' ? 'text-indigo-700' : 'text-slate-500 hover:bg-white/50'}`}
+                    >
+                        {activeTab === 'income' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white shadow-sm rounded-3xl border border-indigo-50" />}
+                        <Users size={20} className="relative z-10" />
+                        <span className="hidden sm:inline relative z-10">מוזמנים והכנסות</span>
+                        <span className="sm:hidden relative z-10">הכנסות</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('expenses')}
+                        className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-3xl font-medium transition-all duration-300 relative ${activeTab === 'expenses' ? 'text-indigo-700' : 'text-slate-500 hover:bg-white/50'}`}
+                    >
+                        {activeTab === 'expenses' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white shadow-sm rounded-3xl border border-indigo-50" />}
+                        <Receipt size={20} className="relative z-10" />
+                        <span className="hidden sm:inline relative z-10">הוצאות וספקים</span>
+                        <span className="sm:hidden relative z-10">הוצאות</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('smart')}
+                        className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-3xl font-medium transition-all duration-300 relative ${activeTab === 'smart' ? 'text-indigo-700' : 'text-slate-500 hover:bg-white/50'}`}
+                    >
+                        {activeTab === 'smart' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white shadow-sm rounded-3xl border border-indigo-50" />}
+                        <Sparkles size={20} className="relative z-10" />
+                        <span className="hidden sm:inline relative z-10">ניהול חכם</span>
+                        <span className="sm:hidden relative z-10">חכם</span>
+                    </button>
+                </motion.div>
+
+                <AnimatePresence mode="wait">
+                    {/* TAB CONTENT: DASHBOARD */}
+                    {activeTab === 'dashboard' && (
+                        <motion.div
+                            key="dashboard"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                        >
+
+                            {/* Visual Budget Progress Bar */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
+                                <div className="flex justify-between items-end mb-5">
+                                    <p className="font-semibold text-slate-900 text-2xl tracking-tight">מדד כיסוי ההשקעה</p>
+                                    <div className={`px-4 py-1.5 rounded-full text-sm font-medium shadow-sm ${calculations.netBalance >= 0 ? 'bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-gradient-to-r from-rose-100 to-rose-50 text-rose-800 border border-rose-200'}`}>
+                                        {calculations.incomeProgress >= 100 ? 'החזרתם 100% ויותר! 🎉' : `מכוסה: ${calculations.incomeProgress.toFixed(1)}%`}
+                                    </div>
+                                </div>
+                                <div className="h-8 w-full bg-slate-100/80 rounded-full overflow-hidden flex relative shadow-inner border border-slate-200/50">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${calculations.incomeProgress}%` }}
+                                        transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                                        className={`h-full ${calculations.netBalance >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-indigo-400 to-indigo-500'}`}
+                                    ></motion.div>
+                                    <div className="absolute top-0 bottom-0 border-l-2 border-slate-900/20 border-dashed z-10" style={{ left: '0%' }}></div>
+                                </div>
+                                <div className="flex justify-between text-sm font-medium text-slate-400 mt-3 px-1">
+                                    <span>{formatMoney(0)}</span>
+                                    <span>יעד התאפסות: <span className="text-slate-700">{formatMoney(calculations.totalExpenses)}</span></span>
+                                </div>
+                            </div>
+
+                            {/* Smart Insights Block */}
+                            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white h-full flex flex-col justify-between border border-white/10 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+                                <div className="relative z-10">
+                                    <h2 className="text-2xl font-semibold mb-8 flex items-center gap-3 tracking-tight">
+                                        <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm">
+                                            <Target className="text-indigo-300" size={24} />
+                                        </div>
+                                        תובנות הזהב שלכם
+                                    </h2>
+                                    <div className="space-y-4">
+                                        <div className="bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10">
+                                            <p className="text-indigo-200 text-sm font-medium mb-2 tracking-wide uppercase">כדי לא להפסיד שקל, הממוצע נדרש להיות:</p>
+                                            <p className="text-5xl font-semibold text-white tracking-tighter shadow-sm">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-xl font-medium opacity-70 tracking-normal">לאורח</span></p>
+                                            <p className="text-xs text-indigo-300/80 mt-4 bg-black/20 inline-flex px-3 py-1.5 rounded-lg border border-white/5">מגלם סיוע הורים ({(calculations.totalParentsGift).toLocaleString()} ₪)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 mt-6 relative z-10 group">
+                                    <div>
+                                        <p className="text-indigo-200 text-sm font-medium mb-1 tracking-wide uppercase">עלות אמיתית לאורח (הכל כלול):</p>
+                                        <p className="text-3xl font-semibold text-white tracking-tight group-hover:scale-105 transition-transform origin-right">{formatMoney(calculations.costPerGuest)}</p>
+                                    </div>
+                                    <PieChart className="text-indigo-300/30 group-hover:text-indigo-300/60 transition-colors" size={48} />
+                                </div>
+                            </div>
+
+                            {/* Venue Details */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-semibold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
+                                        <div className="bg-slate-100 text-slate-700 p-2.5 rounded-2xl">
+                                            <Wallet size={24} />
+                                        </div>
+                                        תקציר הוצאות והתחייבויות
+                                    </h2>
+
+                                    <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200/60 mb-6 shadow-inner">
+                                        <p className="text-xs font-medium text-slate-500 uppercase tracking-widest mb-3">תחשיב אולם</p>
+                                        <p className="text-sm font-medium text-slate-700 bg-white p-4 rounded-2xl border border-slate-100 mb-4 shadow-sm">
+                                            {calculations.costBreakdown}
+                                        </p>
+                                        <div className="flex justify-between items-center text-sm border-t border-slate-200/60 pt-4">
+                                            <span className="font-medium text-slate-600">סה"כ לתשלום לאולם:</span>
+                                            <span className="font-semibold text-indigo-700 text-xl">{formatMoney(calculations.venueCost)}</span>
+                                        </div>
+
+                                        {/* Venue Payment Schedule Breakdown */}
+                                        <div className="mt-5 pt-4 border-t border-slate-200/60 space-y-3 text-sm">
+                                            <p className="text-xs font-medium text-slate-500 uppercase tracking-widest mb-1">פריסת תשלומים</p>
+                                            <div className="flex justify-between text-slate-600 items-center">
+                                                <span>מקדמה 1 בחתימה ({venueAdvance1Percent}% קבועה מ-225 מנות):</span>
+                                                <span className="font-medium bg-white px-2 py-1 rounded-md border border-slate-100">{formatMoney(calculations.venueAdvance1)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-slate-600 items-center">
+                                                <span>מקדמה 2 חודש לפני ({venueAdvance2Percent}% קבועה מ-225 מנות):</span>
+                                                <span className="font-medium bg-white px-2 py-1 rounded-md border border-slate-100">{formatMoney(calculations.venueAdvance2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-indigo-800 font-medium bg-indigo-50/80 p-3 rounded-xl mt-2 border border-indigo-100">
+                                                <span>יתר לתשלום מהמעטפות:</span>
+                                                <span className="text-base">{formatMoney(calculations.venueCost - calculations.venueAdvance)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 rounded-3xl border border-indigo-100 shadow-sm relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-2 h-full bg-indigo-400"></div>
+                                    <p className="text-sm font-medium text-indigo-900/60 mb-2 uppercase tracking-wide">סה"כ יתרה לתשלום גלובלי (לאחר מעטפות)</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-indigo-800 font-medium max-w-[50%] leading-relaxed">כל הסכומים שתצטרכו לשלם אחרי האירוע מסך ההכנסות</span>
+                                        <span className="text-3xl font-semibold text-indigo-700 tracking-tighter group-hover:scale-105 transition-transform origin-left">{formatMoney(calculations.remainingToPay)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* TAB CONTENT: INCOME & GUESTS */}
+                    {activeTab === 'income' && (
+                        <motion.div
+                            key="income"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                        >
+
+                            {/* Scenarios Section - RSVP LOGIC */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <h2 className="text-2xl font-semibold mb-8 flex items-center gap-3 text-slate-900 tracking-tight">
+                                    <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                                        <Users size={24} />
+                                    </div>
+                                    מחשבון מוזמנים והכנסות
+                                </h2>
+
+                                <div className="space-y-10">
+                                    {/* Invited Slider */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <label className="font-medium text-slate-700">כמה אנשים הוזמנו בסך הכל?</label>
+                                            <input
+                                                type="number"
+                                                value={invitedGuests}
+                                                onChange={(e) => setInvitedGuests(Number(e.target.value))}
+                                                onBlur={(e) => updateConfig('invited_guests', Number(e.target.value))}
+                                                className="w-24 px-3 py-2 text-xl font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                                            />
+                                        </div>
+                                        <input
+                                            type="range" min="150" max="800" step="1"
+                                            value={invitedGuests}
+                                            onChange={(e) => setInvitedGuests(Number(e.target.value))}
+                                            onMouseUp={(e) => updateConfig('invited_guests', Number((e.target as HTMLInputElement).value))}
+                                            className="w-full h-2.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-indigo-600 shadow-inner"
+                                        />
+                                    </div>
+
+                                    {/* No-Show Slider */}
+                                    <div className="bg-gradient-to-br from-rose-50/50 to-rose-100/30 p-6 rounded-3xl border border-rose-100 shadow-sm">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <label className="font-medium text-rose-900">אחוז אי-הגעה משוער (פחת)</label>
+                                            <div className="flex items-center gap-1 bg-white px-4 py-1.5 rounded-xl border border-rose-200 shadow-sm">
+                                                <span className="text-xl font-semibold text-rose-600">{noShowPercent}%</span>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="40" step="1"
+                                            value={noShowPercent}
+                                            onChange={(e) => setNoShowPercent(Number(e.target.value))}
+                                            onMouseUp={(e) => updateConfig('no_show_percent', Number((e.target as HTMLInputElement).value))}
+                                            className="w-full h-2.5 bg-rose-200 rounded-full appearance-none cursor-pointer accent-rose-500 shadow-inner"
+                                        />
+                                        <p className="text-sm font-medium text-rose-500/80 mt-4 text-center bg-white/40 py-2 rounded-lg">הסטנדרט בארץ לרוב עומד על 15% - 20%</p>
+                                    </div>
+
+                                    {/* Actual Guests Result */}
+                                    <div className="flex justify-between items-center bg-indigo-600 p-6 rounded-3xl shadow-[0_10px_20px_rgba(79,70,229,0.15)] text-white relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-[40px] rounded-full"></div>
+                                        <span className="font-medium text-indigo-100 text-lg relative z-10">צפי מגיעים בפועל:</span>
+                                        <span className="text-4xl font-semibold tracking-tighter relative z-10 group-hover:scale-105 transition-transform origin-left">{guests} <span className="text-xl font-medium opacity-80 tracking-normal">אורחים</span></span>
+                                    </div>
+
+                                    {/* Avg Gift Slider */}
+                                    <div className="pt-8 border-t border-slate-200/60">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <label className="font-medium text-slate-700">ממוצע מתנה לאורח (₪)</label>
+                                            <input
+                                                type="number"
+                                                value={avgGift}
+                                                onChange={(e) => setAvgGift(Number(e.target.value))}
+                                                onBlur={(e) => updateConfig('avg_gift', Number(e.target.value))}
+                                                className="w-24 px-3 py-2 text-xl font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                                            />
+                                        </div>
+                                        <input
+                                            type="range" min="250" max="1000" step="10"
+                                            value={avgGift}
+                                            onChange={(e) => setAvgGift(Number(e.target.value))}
+                                            onMouseUp={(e) => updateConfig('avg_gift', Number((e.target as HTMLInputElement).value))}
+                                            className="w-full h-2.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-emerald-500 shadow-inner"
+                                        />
+                                        <div className="flex justify-between text-xs font-medium text-slate-400 mt-3 px-1">
+                                            <span>250₪ (פסימי)</span>
+                                            <span>1000₪ (מוגזם)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Parents Section */}
+                            <div className="bg-gradient-to-b from-white/80 to-pink-50/30 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-pink-100 flex flex-col justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-semibold text-pink-600 mb-8 flex items-center gap-3 tracking-tight">
+                                        <div className="bg-pink-100 p-2.5 rounded-2xl text-pink-500">
+                                            <Heart size={24} fill="currentColor" />
+                                        </div>
+                                        עזרה מההורים
+                                    </h2>
+                                    <div className="space-y-4">
+                                        {/* Nadav's Mom Input */}
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-white rounded-2xl border border-pink-100 shadow-sm gap-4 hover:border-pink-300 transition-colors">
+                                            <span className="font-medium text-slate-700 text-lg">אמא של נדב</span>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="number"
+                                                    value={nadavMomGift}
+                                                    onChange={(e) => setNadavMomGift(Number(e.target.value))}
+                                                    className="w-32 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-xl font-semibold text-center shadow-inner"
+                                                />
+                                                <span className="text-pink-400 font-medium text-xl">₪</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Lital's Parents Overview (Dynamic) */}
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-pink-50/50 rounded-2xl border border-pink-200 shadow-sm gap-4 hover:border-pink-300 transition-colors relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-400"></div>
+                                            <div>
+                                                <span className="font-medium text-slate-700 text-lg">ההורים של ליטל</span>
+                                                <p className="text-xs text-pink-500/80 font-medium tracking-wide mt-1">משלימים את יתרת עלות האולם</p>
+                                            </div>
+                                            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl border border-pink-100 shadow-sm">
+                                                <span className="w-auto min-w-[4rem] text-xl font-semibold text-center text-slate-800">{calculations.litalParentsGift.toLocaleString()}</span>
+                                                <span className="text-pink-400 font-medium text-xl">₪</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 bg-gradient-to-r from-pink-500 to-rose-400 rounded-3xl p-6 text-white shadow-md relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-[30px] rounded-full"></div>
+                                    <div className="flex justify-between items-center relative z-10">
+                                        <span className="font-medium text-pink-100 text-lg">סה"כ סיוע:</span>
+                                        <span className="text-4xl font-semibold tracking-tighter group-hover:scale-105 transition-transform origin-left">{formatMoney(calculations.totalParentsGift)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </motion.div>
+                    )}
+
+                    {/* TAB CONTENT: EXPENSES */}
+                    {activeTab === 'expenses' && (
+                        <motion.div
+                            key="expenses"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white"
+                        >
+
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6 border-b border-slate-200/60 pb-6">
+                                <h2 className="text-2xl font-semibold flex items-center gap-3 text-slate-900 tracking-tight">
+                                    <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                                        <Receipt size={24} />
+                                    </div>
+                                    יומן הוצאות ומקדמות
+                                </h2>
+
+                                {/* Safety Buffer Toggle */}
+                                <div className="flex items-center gap-3 bg-slate-100/80 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <ShieldAlert size={20} className="text-slate-600" />
+                                    <span className="text-sm font-semibold text-slate-800">מקדם בלת"מים (+10%)</span>
+                                    <button
+                                        onClick={() => {
+                                            const newVal = !useSafetyBuffer;
+                                            setSafetyBuffer(newVal);
+                                            updateConfig('use_safety_buffer', newVal);
+                                        }}
+                                        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ${useSafetyBuffer ? 'bg-indigo-500 shadow-inner' : 'bg-slate-300 shadow-inner'}`}
+                                    >
+                                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${useSafetyBuffer ? '-translate-x-1.5' : '-translate-x-[26px]'}`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto pb-6">
+                                <div className="min-w-[700px]">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-12 gap-4 px-5 py-3.5 bg-slate-100/80 rounded-2xl text-sm font-medium text-slate-500 uppercase tracking-widest mb-4">
+                                        <div className="col-span-5">סעיף הוצאה / ספק</div>
+                                        <div className="col-span-3 text-left">עלות סופית משוערת</div>
+                                        <div className="col-span-3 text-left">שולם במעמד חתימה</div>
+                                        <div className="col-span-1"></div>
+                                    </div>
+
+                                    {/* Expenses List */}
+                                    <div className="space-y-3 mb-10">
+                                        <AnimatePresence>
+                                            {[...fixedExpenses].sort((a, b) => (a.paid === b.paid ? 0 : a.paid ? 1 : -1)).map((expense) => (
+                                                <motion.div
+                                                    key={expense.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className={`grid grid-cols-12 gap-4 items-center p-3.5 rounded-2xl border transition-all ${expense.paid
+                                                        ? 'bg-emerald-50 border-emerald-200 shadow-sm'
+                                                        : 'bg-white border-slate-200/60 hover:border-indigo-300 hover:shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+                                                        }`}
+                                                >
+                                                    <div className="col-span-5 flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => toggleExpensePaid(expense.id)}
+                                                            className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${expense.paid
+                                                                ? 'bg-emerald-500 border-emerald-600 text-white'
+                                                                : 'bg-white border-slate-300 text-transparent hover:border-indigo-400'
+                                                                }`}
+                                                        >
+                                                            <CheckCircle2 size={14} className={expense.paid ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
+                                                        </button>
+                                                        <span className={`font-medium text-base truncate pr-2 flex-1 ${expense.paid ? 'text-emerald-800 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
+                                                            {expense.name}
+                                                        </span>
+                                                    </div>
+                                                    <div className="col-span-3">
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="number"
+                                                                value={expense.amount}
+                                                                onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
+                                                                className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-base font-semibold text-left outline-none transition-all shadow-inner group-hover:border-indigo-200 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                    }`}
+                                                                readOnly={expense.paid}
+                                                            />
+                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-3">
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="number"
+                                                                value={expense.advance}
+                                                                onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
+                                                                className={`w-full pl-8 pr-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-indigo-50/50 text-base font-semibold text-left text-indigo-800 outline-none transition-all shadow-inner group-hover:border-indigo-300 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                    }`}
+                                                                readOnly={expense.paid}
+                                                            />
+                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 font-semibold text-sm">₪</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-1 flex justify-end">
+                                                        <button onClick={() => removeExpense(expense.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
+                                    </div>
+
+                                    {/* Add new expense */}
+                                    <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-200 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-1.5 h-full bg-indigo-500 rounded-r-3xl"></div>
+                                        <p className="text-sm font-medium text-indigo-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                                            הוספת ספק / הוצאה חדשה
+                                        </p>
+                                        <div className="grid grid-cols-12 gap-4">
+                                            <div className="col-span-5">
+                                                <input type="text" placeholder="שם הספק (למשל: עיצוב פרחים)" value={newExpenseName} onChange={(e) => setNewExpenseName(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm" />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <div className="relative">
+                                                    <input type="number" placeholder="עלות כוללת" value={newExpenseAmount} onChange={(e) => setNewExpenseAmount(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-left shadow-sm" />
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
+                                                </div>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <div className="relative">
+                                                    <input type="number" placeholder="מקדמה עכשיו" value={newExpenseAdvance} onChange={(e) => setNewExpenseAdvance(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-left shadow-sm" />
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
+                                                </div>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <button onClick={addExpense} className="w-full h-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition-all shadow-md">
+                                                    <Plus size={24} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Total Block breakdown inside Expenses Tab */}
+                            <div className="mt-8 bg-slate-50/80 backdrop-blur-md rounded-3xl p-8 border border-slate-200/60 max-w-lg mr-auto shadow-sm">
+                                <h3 className="font-semibold text-slate-900 mb-5 flex items-center gap-2 text-xl tracking-tight">
+                                    סיכום ספקים והוצאות נלוות
+                                </h3>
+
+                                <div className="space-y-4 text-base">
+                                    <div className="flex justify-between items-center text-slate-600 font-medium pb-3 border-b border-slate-200/60">
+                                        <span>בסיס הוצאות (ללא אולם):</span>
+                                        <span className="font-semibold text-slate-800 text-lg">{formatMoney(calculations.baseFixed)}</span>
+                                    </div>
+
+                                    {useSafetyBuffer && (
+                                        <div className="flex justify-between items-center text-amber-700 font-medium pb-3 border-b border-slate-200/60">
+                                            <span>+ תוספת 10% מקדם בלת"מים:</span>
+                                            <span className="font-semibold text-lg">{formatMoney(calculations.safetyBufferAmount)}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center text-indigo-900 pt-3">
+                                        <span className="font-medium text-lg">סה"כ ספקים משוער:</span>
+                                        <span className="font-semibold text-3xl tracking-tight">{formatMoney(calculations.totalFixed)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </motion.div>
+                    )}
+                    {/* TAB CONTENT: SMART MANAGEMENT */}
+                    {activeTab === 'smart' && (
+                        <motion.div
+                            key="smart"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                        >
+
+                            {/* Scenario Comparison */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
+                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-slate-900 tracking-tight">
+                                    <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                                        <BarChart3 size={24} />
+                                    </div>
+                                    השוואת תרחישים
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {calculations.scenarios.map((s, i) => (
+                                        <div key={i} className={`rounded-3xl p-6 border relative overflow-hidden ${s.color === 'rose' ? 'bg-rose-50/50 border-rose-200' :
+                                            s.color === 'indigo' ? 'bg-indigo-50/50 border-indigo-200 ring-2 ring-indigo-300' :
+                                                'bg-emerald-50/50 border-emerald-200'
+                                            }`}>
+                                            {s.color === 'indigo' && <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">נוכחי</div>}
+                                            <p className={`text-sm font-medium uppercase tracking-widest mb-4 ${s.color === 'rose' ? 'text-rose-600' : s.color === 'indigo' ? 'text-indigo-600' : 'text-emerald-600'
+                                                }`}>{s.label}</p>
+                                            <div className="space-y-3 text-sm">
+                                                <div className="flex justify-between"><span className="text-slate-600">ממוצע מתנה:</span><span className="font-semibold">{formatMoney(s.avgGift)}</span></div>
+                                                <div className="flex justify-between"><span className="text-slate-600">אי-הגעה:</span><span className="font-semibold">{s.noShow}%</span></div>
+                                                <div className="flex justify-between"><span className="text-slate-600">מגיעים:</span><span className="font-semibold">{s.guests}</span></div>
+                                                <div className="flex justify-between"><span className="text-slate-600">הכנסה כוללת:</span><span className="font-semibold">{formatMoney(s.income)}</span></div>
+                                                <div className={`flex justify-between pt-3 border-t ${s.balance >= 0 ? 'border-emerald-200' : 'border-rose-200'}`}>
+                                                    <span className="font-medium">שורה תחתונה:</span>
+                                                    <span className={`font-semibold text-lg ${s.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                        {s.balance > 0 ? '+' : ''}{formatMoney(s.balance)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Savings Tracker */}
+                            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white border border-white/10 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-48 h-48 bg-indigo-500/10 blur-[60px] rounded-full pointer-events-none"></div>
+                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 tracking-tight relative z-10">
+                                    <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm">
+                                        <Banknote className="text-indigo-300" size={24} />
+                                    </div>
+                                    מעקב חיסכון חודשי
+                                </h2>
+                                <div className="space-y-6 relative z-10">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <label className="font-medium text-indigo-200">כמה אתם חוסכים בחודש?</label>
+                                            <input
+                                                type="number"
+                                                value={monthlySaving}
+                                                onChange={(e) => setMonthlySaving(Number(e.target.value))}
+                                                onBlur={(e) => updateConfig('monthly_saving', Number(e.target.value))}
+                                                className="w-28 px-3 py-2 text-xl font-semibold text-indigo-400 bg-white/10 border border-white/20 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 backdrop-blur-sm"
+                                            />
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="15000" step="500"
+                                            value={monthlySaving}
+                                            onChange={(e) => setMonthlySaving(Number(e.target.value))}
+                                            onMouseUp={(e) => updateConfig('monthly_saving', Number((e.target as HTMLInputElement).value))}
+                                            className="w-full h-2.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 space-y-3">
+                                        <div className="flex justify-between text-indigo-200"><span>חודשים שנותרו:</span><span className="font-semibold text-white">{monthsLeft}</span></div>
+                                        <div className="flex justify-between text-indigo-200"><span>סה"כ חיסכון עד החתונה:</span><span className="font-semibold text-indigo-400 text-xl">{formatMoney(totalSavingsByWedding)}</span></div>
+                                        <div className="flex justify-between text-indigo-200"><span>מקדמות שנדרשות:</span><span className="font-semibold text-indigo-300">{formatMoney(savingsNeeded)}</span></div>
+                                        <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden mt-2">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${savingsProgress}%` }}
+                                                transition={{ duration: 1, ease: "easeOut" }}
+                                                className={`h-full rounded-full ${savingsProgress >= 100 ? 'bg-indigo-400' : 'bg-slate-400'}`}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-indigo-300 text-center mt-1">
+                                            {savingsProgress >= 100 ? '🎉 מכוסה לחלוטין!' : `${savingsProgress.toFixed(0)}% מכוסה — צריך עוד ${formatMoney(Math.max(0, savingsNeeded - totalSavingsByWedding))}`}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Expense Breakdown Donut */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-slate-900 tracking-tight">
+                                    <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                                        <PieChart size={24} />
+                                    </div>
+                                    פילוח הוצאות
+                                </h2>
+                                <div className="flex flex-col items-center gap-6">
+                                    {/* SVG Donut */}
+                                    <svg viewBox="0 0 120 120" className="w-48 h-48">
+                                        {(() => {
+                                            const total = calculations.expenseCategories.reduce((s: number, c: { amount: number }) => s + c.amount, 0);
+                                            let offset = 0;
+                                            return calculations.expenseCategories.filter(c => c.amount > 0).map((cat, i) => {
+                                                const pct = total > 0 ? (cat.amount / total) * 100 : 0;
+                                                const dashArray = `${pct * 2.83} ${283 - pct * 2.83}`;
+                                                const dashOffset = -offset * 2.83;
+                                                offset += pct;
+                                                return (
+                                                    <circle key={i} cx="60" cy="60" r="45" fill="none"
+                                                        stroke={cat.color} strokeWidth="18"
+                                                        strokeDasharray={dashArray}
+                                                        strokeDashoffset={dashOffset}
+                                                        className="transition-all duration-500"
+                                                        style={{ transformOrigin: 'center', transform: 'rotate(-90deg)' }}
+                                                    />
+                                                );
+                                            });
+                                        })()}
+                                        <text x="60" y="56" textAnchor="middle" className="text-[10px] font-semibold fill-slate-900">{formatMoney(calculations.totalExpenses)}</text>
+                                        <text x="60" y="70" textAnchor="middle" className="text-[6px] font-medium fill-slate-500">סה"כ הוצאות</text>
+                                    </svg>
+                                    {/* Legend */}
+                                    <div className="grid grid-cols-2 gap-3 w-full">
+                                        {calculations.expenseCategories.filter(c => c.amount > 0).map((cat, i) => {
+                                            const total = calculations.expenseCategories.reduce((s, c) => s + c.amount, 0);
+                                            const pct = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : '0';
+                                            return (
+                                                <div key={i} className="flex items-center gap-2 text-sm">
+                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                                    <span className="text-slate-700 font-medium truncate">{cat.name}</span>
+                                                    <span className="text-slate-400 mr-auto">{pct}%</span>
+                                                    <span className="font-semibold text-slate-800">{formatMoney(cat.amount)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Wedding Checklist */}
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-semibold flex items-center gap-3 text-slate-900 tracking-tight">
+                                        <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-2xl">
+                                            <CheckCircle2 size={24} />
+                                        </div>
+                                        צ'קליסט חתונה
+                                    </h2>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-3 w-32 bg-slate-100 rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${checklistProgress}%` }}
+                                                transition={{ duration: 0.5 }}
+                                                className="h-full bg-emerald-500 rounded-full"
+                                            />
+                                        </div>
+                                        <span className="text-sm font-semibold text-slate-700">{checklistDone}/{checklistTotal}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {checklistCategories.map(category => (
+                                        <div key={category}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Clock size={14} className="text-slate-400" />
+                                                <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">{category}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {smartChecklistItems.filter(item => item.category === category).map(item => (
+                                                    <div key={item.id} className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer group ${item.isDone ? 'bg-emerald-50/50 border-emerald-100' :
+                                                        item.isLate ? 'bg-rose-50 border-rose-300 animate-[pulse_2s_ease-in-out_infinite]' :
+                                                            'bg-white border-slate-200/60 hover:border-indigo-200'
+                                                        }`}
+                                                        onClick={() => toggleChecklistItem(item.id)}>
+                                                        {item.isDone ?
+                                                            <CheckCircle2 size={22} className="text-emerald-500 flex-shrink-0" /> :
+                                                            <Circle size={22} className={`flex-shrink-0 transition-colors ${item.isLate ? 'text-rose-400 group-hover:text-rose-600' : 'text-slate-300 group-hover:text-indigo-400'}`} />
+                                                        }
+                                                        <div className="flex-1 flex flex-col">
+                                                            <span className={`font-medium ${item.isDone ? 'text-slate-400 line-through' :
+                                                                item.isLate ? 'text-rose-900' :
+                                                                    'text-slate-800'
+                                                                }`}>{item.text}</span>
+                                                            {item.isLate && !item.isDone && (
+                                                                <span className="text-[10px] font-semibold tracking-wider text-rose-500 uppercase mt-0.5 animate-pulse">
+                                                                    ⚠ באיחור!
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <button onClick={(e) => { e.stopPropagation(); removeChecklistItem(item.id); }} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Add checklist item */}
+                                <div className="mt-6 flex gap-3">
+                                    <input
+                                        type="text"
+                                        placeholder="הוספת משימה חדשה..."
+                                        value={newChecklistText}
+                                        onChange={(e) => setNewChecklistText(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
+                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                                    />
+                                    <button onClick={addChecklistItem} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-medium transition-all shadow-md flex items-center gap-2">
+                                        <Plus size={18} /> הוסף
+                                    </button>
+                                </div>
+                            </div>
+
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+            </div>
+        </div>
+    );
+}
