@@ -137,22 +137,55 @@ export default function WeddingSimulator() {
             if (checklistRes.data && checklistRes.data.length > 0) {
                 setChecklistItems(checklistRes.data);
             } else if (checklistRes.data && checklistRes.data.length === 0) {
-                // Seed default checklist for new users
                 const defaultChecklist = [
-                    { text: 'סגירת אולם וחתימת חוזה', category: '12+ חודשים' },
-                    { text: 'סגירת צלם/ית', category: '12+ חודשים' },
-                    { text: 'סגירת DJ', category: '12+ חודשים' },
-                    { text: 'בחירת שמלת כלה', category: '6 חודשים' },
-                    { text: 'הזמנת הזמנות', category: '6 חודשים' },
-                    { text: 'סגירת עיצוב ופרחים', category: '6 חודשים' },
-                    { text: 'רכישת טבעות', category: '6 חודשים' },
-                    { text: 'סגירת מאפרת ושיער', category: '3 חודשים' },
-                    { text: 'סידורי רבנות ומקווה', category: '3 חודשים' },
-                    { text: 'אישורי הגעה סבב ראשון', category: 'חודש לפני' },
-                    { text: 'סידור הושבה', category: 'חודש לפני' },
-                    { text: 'הכנת מעטפות טיפים', category: 'שבוע לפני' },
-                    { text: 'אישור סופי עם כל הספקים', category: 'שבוע לפני' },
-                    { text: 'אריזת תיק ליום החתונה', category: 'שבוע לפני' }
+                    // שלב ראשון
+                    { text: 'הכנת רשימת מוזמנים', category: 'שלב ראשון' },
+                    { text: 'בחירת תאריך ואזור מועדפים', category: 'שלב ראשון' },
+                    { text: 'קביעת תקציב', category: 'שלב ראשון' },
+                    // בחירת ספקים
+                    { text: 'בחירת אולם ושריון תאריך', category: 'בחירת ספקים' },
+                    { text: 'בחירת קייטרינג', category: 'בחירת ספקים' },
+                    { text: 'בחירת צלמים', category: 'בחירת ספקים' },
+                    { text: 'בחירת דיג\'יי', category: 'בחירת ספקים' },
+                    { text: 'בחירת צלם מגנטים', category: 'בחירת ספקים' },
+                    { text: 'סגירת חוזה מול האולם', category: 'בחירת ספקים' },
+                    // בחירת ספקים שלב 2
+                    { text: 'סגירת איפור ושיער לכלה', category: 'בחירת ספקים שלב 2' },
+                    { text: 'סגירת איפור ושיער למלוות', category: 'בחירת ספקים שלב 2' },
+                    { text: 'בחירת שמלת כלה', category: 'בחירת ספקים שלב 2' },
+                    { text: 'ספק אלכוהול', category: 'בחירת ספקים שלב 2' },
+                    { text: 'עיצוב הזמנות והדפסה', category: 'בחירת ספקים שלב 2' },
+                    { text: 'עיצוב אולם', category: 'בחירת ספקים שלב 2' },
+                    // שלושה חודשים לפני החתונה
+                    { text: 'רישום ברבנות', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'בניית הטקס', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'רכישת טבעות נישואים', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'רכישת חליפה ונעליים לחתן', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'רכישת נעליים ואביזרים משלימים לכלה', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'תיאום מפגש טעימות', category: 'שלושה חודשים לפני החתונה' },
+                    { text: 'תיאום מפגש עם הדיג\'יי', category: 'שלושה חודשים לפני החתונה' },
+                    // חודש לפני החתונה
+                    { text: 'שליחת הזמנות', category: 'חודש לפני החתונה' },
+                    { text: 'מפגש טעימות', category: 'חודש לפני החתונה' },
+                    { text: 'פגישה עם הדיג\'יי', category: 'חודש לפני החתונה' },
+                    { text: 'הזמנת כתובה', category: 'חודש לפני החתונה' },
+                    { text: 'פגישה עם המעצב/ת של האולם', category: 'חודש לפני החתונה' },
+                    // שבועיים לפני
+                    { text: 'לשלם לאקו"ם', category: 'שבועיים לפני' },
+                    { text: 'בחירת מיקום לצילומים לפני החתונה + לו"ז', category: 'שבועיים לפני' },
+                    { text: 'אישורי הגעה', category: 'שבועיים לפני' },
+                    { text: 'סידורי הושבה', category: 'שבועיים לפני' },
+                    { text: 'מדידות אחרונות לשמלת כלה ואיסוף השמלה', category: 'שבועיים לפני' },
+                    { text: 'כתיבת דברים אישיים לחופה', category: 'שבועיים לפני' },
+                    // שבוע לפני
+                    { text: 'שיחות תיאום עם הספקים', category: 'שבוע לפני' },
+                    { text: 'להכין צ\'קים לספקים', category: 'שבוע לפני' },
+                    { text: 'מתנות לאורחים?', category: 'שבוע לפני' },
+                    { text: 'לקנות גומי לרחבה', category: 'שבוע לפני' },
+                    { text: 'צ\'ק ליסט ליום החתונה', category: 'שבוע לפני' },
+                    { text: 'אביזרי עיצוב', category: 'שבוע לפני' },
+                    { text: 'אביזרים לרחבה', category: 'שבוע לפני' },
+                    { text: 'רשימות - מה לא לשכוח', category: 'שבוע לפני' }
                 ].map(item => ({ ...item, config_id: id, done: false }));
 
                 const { data: newChecklist } = await supabase.from('checklist').insert(defaultChecklist).select();
@@ -298,14 +331,19 @@ export default function WeddingSimulator() {
                 if (exp.paid || Number(exp.advance) > 0) {
                     const expLower = exp.name.toLowerCase();
                     if (nameLower.includes('אולם') && expLower.includes('אולם')) return true;
-                    if (nameLower.includes('צלם') && expLower.includes('צלם')) return true;
+                    if (nameLower.includes('צלמ') && expLower.includes('צלמ')) return true;
                     if (nameLower.includes('דיג') && expLower.includes('דיג')) return true;
+                    if (nameLower.includes('קייטרינג') && expLower.includes('קייטרינג')) return true;
+                    if (nameLower.includes('מגנטים') && expLower.includes('מגנט')) return true;
                     if (nameLower.includes('שמל') && expLower.includes('שמל')) return true;
                     if (nameLower.includes('איפור') && expLower.includes('איפור')) return true;
+                    if (nameLower.includes('שיער') && expLower.includes('שיער')) return true;
+                    if (nameLower.includes('אלכוהול') && expLower.includes('אלכוהול')) return true;
+                    if (nameLower.includes('הזמנות') && expLower.includes('הזמנות')) return true;
                     if (nameLower.includes('טבעו') && expLower.includes('טבעו')) return true;
                     if (nameLower.includes('חליפ') && (expLower.includes('חליפ') || expLower.includes('חתן'))) return true;
                     if (nameLower.includes('עיצוב') && expLower.includes('עיצוב')) return true;
-                    if (nameLower.includes('אישור הגעה') && expLower.includes('אישור')) return true;
+                    if (nameLower.includes('אקו"ם') && (expLower.includes('אקום') || expLower.includes('אקו"ם'))) return true;
                 }
                 return false;
             });
@@ -317,10 +355,12 @@ export default function WeddingSimulator() {
             // 2. Late deadline logic
             if (!isDone) {
                 const cat = item.category;
-                if (cat === '12+ חודשים' && daysLeft <= 360) isLate = true;
-                if (cat === '6 חודשים' && daysLeft <= 180) isLate = true;
-                if (cat === '3 חודשים' && daysLeft <= 90) isLate = true;
-                if (cat === 'חודש לפני' && daysLeft <= 30) isLate = true;
+                if (cat === 'שלב ראשון' && daysLeft <= 360) isLate = true;
+                if (cat === 'בחירת ספקים' && daysLeft <= 270) isLate = true;
+                if (cat === 'בחירת ספקים שלב 2' && daysLeft <= 180) isLate = true;
+                if (cat === 'שלושה חודשים לפני החתונה' && daysLeft <= 90) isLate = true;
+                if (cat === 'חודש לפני החתונה' && daysLeft <= 30) isLate = true;
+                if (cat === 'שבועיים לפני' && daysLeft <= 14) isLate = true;
                 if (cat === 'שבוע לפני' && daysLeft <= 7) isLate = true;
             }
 
