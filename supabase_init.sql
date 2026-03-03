@@ -23,6 +23,8 @@ create table
     amount integer not null default 0,
     advance integer not null default 0,
     paid boolean not null default false,
+    contact_name text,
+    contact_phone text,
     constraint expenses_pkey primary key (id),
     constraint expenses_config_id_fkey foreign key (config_id) references wedding_config (id) on delete cascade
   ) tablespace pg_default;

@@ -9,6 +9,8 @@ interface Expense {
     amount: number | string;
     advance: number | string;
     paid?: boolean;
+    contact_name?: string;
+    contact_phone?: string;
 }
 
 interface ChecklistItem {
@@ -444,8 +446,9 @@ export default function WeddingSimulator() {
 
     const updateExpense = async (id: number, field: string, value: string | number) => {
         if (!configId) return;
-        setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: Number(value) } : e));
-        await supabase.from('expenses').update({ [field]: Number(value) }).eq('id', id);
+        const val = field === 'contact_name' || field === 'contact_phone' ? value : Number(value);
+        setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: val } : e));
+        await supabase.from('expenses').update({ [field]: val }).eq('id', id);
         await loadData(configId);
     };
 
@@ -985,56 +988,91 @@ export default function WeddingSimulator() {
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
                                                     transition={{ duration: 0.2 }}
-                                                    className={`grid grid-cols-12 gap-4 items-center p-3.5 rounded-2xl border transition-all ${expense.paid
+                                                    className={`p-3.5 rounded-2xl border transition-all flex flex-col gap-3 ${expense.paid
                                                         ? 'bg-emerald-50 border-emerald-200 shadow-sm'
                                                         : 'bg-white border-slate-200/60 hover:border-indigo-300 hover:shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
                                                         }`}
                                                 >
-                                                    <div className="col-span-5 flex items-center gap-3">
-                                                        <button
-                                                            onClick={() => toggleExpensePaid(expense.id)}
-                                                            className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${expense.paid
-                                                                ? 'bg-emerald-500 border-emerald-600 text-white'
-                                                                : 'bg-white border-slate-300 text-transparent hover:border-indigo-400'
-                                                                }`}
-                                                        >
-                                                            <CheckCircle2 size={14} className={expense.paid ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
-                                                        </button>
-                                                        <span className={`font-medium text-base truncate pr-2 flex-1 ${expense.paid ? 'text-emerald-800 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
-                                                            {expense.name}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-span-3">
-                                                        <div className="relative group">
-                                                            <input
-                                                                type="number"
-                                                                value={expense.amount}
-                                                                onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
-                                                                className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-base font-semibold text-left outline-none transition-all shadow-inner group-hover:border-indigo-200 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                    <div className="grid grid-cols-12 gap-4 items-center">
+                                                        <div className="col-span-5 flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => toggleExpensePaid(expense.id)}
+                                                                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${expense.paid
+                                                                    ? 'bg-emerald-500 border-emerald-600 text-white'
+                                                                    : 'bg-white border-slate-300 text-transparent hover:border-indigo-400'
                                                                     }`}
-                                                                readOnly={expense.paid}
-                                                            />
-                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
+                                                            >
+                                                                <CheckCircle2 size={14} className={expense.paid ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
+                                                            </button>
+                                                            <span className={`font-medium text-base truncate pr-2 flex-1 ${expense.paid ? 'text-emerald-800 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
+                                                                {expense.name}
+                                                            </span>
+                                                        </div>
+                                                        <div className="col-span-3">
+                                                            <div className="relative group">
+                                                                <input
+                                                                    type="number"
+                                                                    value={expense.amount}
+                                                                    onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
+                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-base font-semibold text-left outline-none transition-all shadow-inner group-hover:border-indigo-200 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                        }`}
+                                                                    readOnly={expense.paid}
+                                                                />
+                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-span-3">
+                                                            <div className="relative group">
+                                                                <input
+                                                                    type="number"
+                                                                    value={expense.advance}
+                                                                    onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
+                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-indigo-50/50 text-base font-semibold text-left text-indigo-800 outline-none transition-all shadow-inner group-hover:border-indigo-300 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                        }`}
+                                                                    readOnly={expense.paid}
+                                                                />
+                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 font-semibold text-sm">₪</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-span-1 flex justify-end">
+                                                            <button onClick={() => removeExpense(expense.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+                                                                <Trash2 size={18} />
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    <div className="col-span-3">
-                                                        <div className="relative group">
-                                                            <input
-                                                                type="number"
-                                                                value={expense.advance}
-                                                                onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
-                                                                className={`w-full pl-8 pr-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-indigo-50/50 text-base font-semibold text-left text-indigo-800 outline-none transition-all shadow-inner group-hover:border-indigo-300 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
-                                                                    }`}
-                                                                readOnly={expense.paid}
-                                                            />
-                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 font-semibold text-sm">₪</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-span-1 flex justify-end">
-                                                        <button onClick={() => removeExpense(expense.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
-                                                            <Trash2 size={18} />
-                                                        </button>
-                                                    </div>
+
+                                                    <AnimatePresence>
+                                                        {expense.paid && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="pt-3 border-t border-emerald-200/60 flex flex-col sm:flex-row items-center gap-4 overflow-hidden"
+                                                            >
+                                                                <div className="flex-1 w-full flex items-center gap-2">
+                                                                    <span className="text-emerald-700/80 text-sm font-medium whitespace-nowrap">איש קשר:</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="למשל: ירון"
+                                                                        value={expense.contact_name || ''}
+                                                                        onChange={(e) => updateExpense(expense.id, 'contact_name', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-emerald-100/30 border border-emerald-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900 placeholder-emerald-600/50 shadow-inner"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 w-full flex items-center gap-2">
+                                                                    <span className="text-emerald-700/80 text-sm font-medium whitespace-nowrap">טלפון:</span>
+                                                                    <input
+                                                                        type="tel"
+                                                                        placeholder="05X-XXXXXXX"
+                                                                        value={expense.contact_phone || ''}
+                                                                        onChange={(e) => updateExpense(expense.id, 'contact_phone', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-emerald-100/30 border border-emerald-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900 placeholder-emerald-600/50 shadow-inner"
+                                                                        dir="ltr"
+                                                                    />
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
                                                 </motion.div>
                                             ))}
                                         </AnimatePresence>
