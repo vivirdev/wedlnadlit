@@ -613,32 +613,32 @@ export default function WeddingSimulator() {
                     transition={{ delay: 0.1 }}
                     className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:px-8"
                 >
-                    {/* Income Card - Emerald */}
-                    <div className="bg-emerald-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.12)] transition-all group border border-emerald-100/60">
+                    {/* Income Card */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-lg">💰</span>
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">הכנסות והורים</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">הכנסות והורים</p>
                         </div>
-                        <p className="text-3xl font-extrabold text-emerald-900 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
+                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
                     </div>
 
-                    {/* Expenses Card - Amber */}
-                    <div className="bg-amber-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(245,158,11,0.12)] transition-all group border border-amber-100/60 relative overflow-hidden">
-                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-amber-300"></div>}
+                    {/* Expenses Card */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100 relative overflow-hidden">
+                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-200"></div>}
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-lg">🧾</span>
-                            <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">סה"כ הוצאות</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">סה"כ הוצאות</p>
                         </div>
-                        <p className="text-3xl font-extrabold text-amber-900 tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
+                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
                     </div>
 
-                    {/* Advances Card - Blue */}
-                    <div className="bg-sky-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(14,165,233,0.12)] transition-all group border border-sky-100/60">
+                    {/* Advances Card */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-lg">💳</span>
-                            <p className="text-xs font-bold text-sky-600 uppercase tracking-widest">מקדמות ששולמו</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">מקדמות ששולמו</p>
                         </div>
-                        <p className="text-3xl font-extrabold text-sky-900 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
+                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
                     </div>
 
                     {/* Net Balance Card - Pink gradient */}
@@ -761,7 +761,7 @@ export default function WeddingSimulator() {
                                 </div>
                                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                     <p className="text-slate-500 text-sm font-semibold mb-1 uppercase tracking-wider">הממוצע הנדרש:</p>
-                                    <p className="text-5xl font-bold text-slate-900 tracking-tighter mb-4">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-base font-semibold text-slate-400">לאורח</span></p>
+                                    <p className="text-5xl font-bold text-pink-600 tracking-tighter mb-4">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-base font-semibold text-slate-400">לאורח</span></p>
                                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500">
                                         <span>סיוע הורים:</span>
                                         <span className="text-slate-800">{(calculations.totalParentsGift).toLocaleString()} ₪</span>
@@ -770,7 +770,7 @@ export default function WeddingSimulator() {
                                 <div className="flex justify-between items-center mt-4">
                                     <div>
                                         <p className="text-xs text-slate-400 font-semibold mb-1 uppercase tracking-wider">עלות כוללת לאורח</p>
-                                        <p className="text-2xl font-bold text-slate-800">{formatMoney(calculations.costPerGuest)}</p>
+                                        <p className="text-2xl font-bold text-pink-600">{formatMoney(calculations.costPerGuest)}</p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                         <PieChart className="text-slate-400" size={24} strokeWidth={1.5} />
@@ -792,7 +792,7 @@ export default function WeddingSimulator() {
                                         <p className="text-sm font-medium text-slate-600 mb-4">{calculations.costBreakdown}</p>
                                         <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-4">
                                             <span className="font-semibold text-slate-500">סה"כ לתשלום:</span>
-                                            <span className="font-bold text-slate-900 text-xl">{formatMoney(calculations.venueCost)}</span>
+                                            <span className="font-bold text-pink-600 text-xl">{formatMoney(calculations.venueCost)}</span>
                                         </div>
 
                                         {/* Venue Payment Schedule Breakdown */}
@@ -813,7 +813,7 @@ export default function WeddingSimulator() {
                                 <div className="bg-white border border-slate-200 p-5 rounded-2xl mt-auto">
                                     <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">יתרה מאוחרת (ביום האירוע)</p>
                                     <div className="flex justify-between items-end">
-                                        <span className="text-3xl font-bold text-slate-900">{formatMoney(calculations.remainingToPay)}</span>
+                                        <span className="text-3xl font-bold text-pink-600">{formatMoney(calculations.remainingToPay)}</span>
                                         <span className="text-xs text-slate-500 font-medium pb-1.5">מהמעטפות / כיס משותף</span>
                                     </div>
                                 </div>
