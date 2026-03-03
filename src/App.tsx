@@ -615,39 +615,27 @@ export default function WeddingSimulator() {
                 >
                     {/* Income Card */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className="text-lg">💰</span>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">הכנסות והורים</p>
-                        </div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">הכנסות והורים</p>
                         <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
                     </div>
 
                     {/* Expenses Card */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100 relative overflow-hidden">
                         {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-200"></div>}
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className="text-lg">🧾</span>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">סה"כ הוצאות</p>
-                        </div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">סה"כ הוצאות</p>
                         <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
                     </div>
 
                     {/* Advances Card */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className="text-lg">💳</span>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">מקדמות ששולמו</p>
-                        </div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">מקדמות ששולמו</p>
                         <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
                     </div>
 
                     {/* Net Balance Card - Pink gradient */}
                     <div className={`rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(236,72,153,0.25)] relative overflow-hidden group ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-pink-500 to-rose-500' : 'bg-gradient-to-br from-rose-600 to-red-600'}`}>
                         <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/20 rounded-full blur-2xl group-hover:bg-white/30 transition-all"></div>
-                        <div className="flex items-center gap-2 mb-3 relative z-10">
-                            <span className="text-lg">{calculations.netBalance >= 0 ? '🎉' : '⚠️'}</span>
-                            <p className="text-xs font-bold text-white/80 uppercase tracking-widest">רווח משוער</p>
-                        </div>
+                        <p className="text-xs font-bold text-white/80 uppercase tracking-widest mb-3 relative z-10">רווח משוער</p>
                         <div className="flex items-center gap-2 relative z-10">
                             {calculations.netBalance >= 0 ? <TrendingUp className="text-white opacity-80" size={24} /> : <TrendingDown className="text-rose-200" size={24} />}
                             <p className="text-3xl font-extrabold text-white tracking-tight">
