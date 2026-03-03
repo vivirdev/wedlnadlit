@@ -537,21 +537,21 @@ export default function WeddingSimulator() {
     };
 
     if (authLoading) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div></div>;
+        return <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF4D7F]"></div></div>;
     }
 
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans" dir="rtl">
+            <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8] p-4 font-sans" dir="rtl">
                 <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-slate-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-pink-50 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-50 blur-3xl rounded-full -ml-16 -mb-16 pointer-events-none"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFE5ED] blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#F8F8F8] blur-3xl rounded-full -ml-16 -mb-16 pointer-events-none"></div>
 
                     <div className="relative z-10">
-                        <div className="w-16 h-16 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                        <div className="w-16 h-16 bg-[#FFDEDE] text-[#FF4D7F] rounded-2xl flex items-center justify-center mb-6 mx-auto">
                             <Lock size={32} strokeWidth={1.5} />
                         </div>
-                        <h1 className="text-2xl font-bold text-slate-800 text-center mb-2 tracking-tight">התחברות לחתונה</h1>
+                        <h1 className="text-2xl font-bold text-[#333333] text-center mb-2 tracking-tight">התחברות לחתונה</h1>
                         <p className="text-slate-500 text-center mb-8 text-sm">הכניסו את הסיסמה המשותפת שלכם כדי לצפות ולערוך מקול מקום</p>
 
                         <form onSubmit={handleLogin} className="space-y-4">
@@ -561,14 +561,14 @@ export default function WeddingSimulator() {
                                     value={passwordInput}
                                     onChange={(e) => setPasswordInput(e.target.value)}
                                     placeholder="הקלד סיסמה..."
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-white text-base font-medium text-center text-slate-800 outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-[#F8F8F8] border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white text-base font-medium text-center text-[#333333] outline-none transition-all"
                                 />
                             </div>
                             {authError && <p className="text-rose-500 text-sm font-medium text-center bg-rose-50 py-2 rounded-lg">{authError}</p>}
                             <button
                                 type="submit"
                                 disabled={authLoading || !passwordInput}
-                                className="w-full bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-pink-200"
+                                className="w-full bg-[#FF4D7F] hover:bg-[#e63e6d] disabled:opacity-50 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-pink-200"
                             >
                                 {authLoading ? 'מתחבר...' : 'היכנס'}
                             </button>
@@ -584,7 +584,7 @@ export default function WeddingSimulator() {
     };
 
     return (
-        <div dir="rtl" className="min-h-screen bg-[#FCFCFD] p-4 md:p-8 font-sans text-slate-800 selection:bg-pink-200">
+        <div dir="rtl" className="min-h-screen bg-[#F5F7FA] p-4 md:p-8 font-sans text-[#333333] selection:bg-[#FFDEDE]">
             <div className="max-w-5xl mx-auto space-y-8">
 
                 {/* Top Header - Hero Style */}
@@ -593,13 +593,13 @@ export default function WeddingSimulator() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-center justify-center pt-8 pb-4 text-center"
                 >
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-50 border border-pink-100 text-pink-600 font-semibold text-sm mb-6 shadow-sm">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FFE5ED] border border-[#FFDEDE] text-[#FF4D7F] font-semibold text-sm mb-6 shadow-sm">
                         <CalendarHeart size={16} />
                         <span>23 ביוני 2026 • מערבה • עוד {daysLeft} ימים!</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#1F1A1A] tracking-tight leading-tight">
                         חתונה חכמה <br className="md:hidden" />
-                        <span className="text-pink-500">מהרגע הראשון</span>
+                        <span className="text-[#FF4D7F]">מהרגע הראשון</span>
                     </h1>
                     <p className="text-slate-500 font-medium mt-4 text-lg max-w-xl mx-auto">
                         ניהול פיננסי אוטומטי, יחד עם תיעוד מוזמנים והוצאות ממרכז אחד.
@@ -614,26 +614,26 @@ export default function WeddingSimulator() {
                     className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:px-8"
                 >
                     {/* Income Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE]">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">הכנסות והורים</p>
-                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
+                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalIncome)}</p>
                     </div>
 
                     {/* Expenses Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100 relative overflow-hidden">
-                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-200"></div>}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE] relative overflow-hidden">
+                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-[#FFDEDE]"></div>}
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">סה"כ הוצאות</p>
-                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
+                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
                     </div>
 
                     {/* Advances Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE]">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">מקדמות ששולמו</p>
-                        <p className="text-3xl font-extrabold text-pink-600 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
+                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
                     </div>
 
                     {/* Net Balance Card - Pink gradient */}
-                    <div className={`rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(236,72,153,0.25)] relative overflow-hidden group ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-pink-500 to-rose-500' : 'bg-gradient-to-br from-rose-600 to-red-600'}`}>
+                    <div className={`rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(255,77,127,0.25)] relative overflow-hidden group ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-[#FF4D7F] to-[#e63e6d]' : 'bg-gradient-to-br from-[#d4365e] to-[#c42f52]'}`}>
                         <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/20 rounded-full blur-2xl group-hover:bg-white/30 transition-all"></div>
                         <p className="text-xs font-bold text-white/80 uppercase tracking-widest mb-3 relative z-10">רווח משוער</p>
                         <div className="flex items-center gap-2 relative z-10">
@@ -654,28 +654,28 @@ export default function WeddingSimulator() {
                 >
                     <button
                         onClick={() => setActiveTab('dashboard')}
-                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-pink-500 text-white shadow-md shadow-pink-200/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
                     >
                         <LayoutDashboard size={18} />
                         <span>סקירה ותובנות</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('income')}
-                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'income' ? 'bg-pink-500 text-white shadow-md shadow-pink-200/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'income' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
                     >
                         <Users size={18} />
                         <span>מוזמנים והכנסות</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('expenses')}
-                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'expenses' ? 'bg-pink-500 text-white shadow-md shadow-pink-200/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'expenses' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
                     >
                         <Receipt size={18} />
                         <span>הוצאות וספקים</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('smart')}
-                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'smart' ? 'bg-pink-500 text-white shadow-md shadow-pink-200/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'smart' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
                     >
                         <Sparkles size={18} />
                         <span>ניהול חכם</span>
@@ -718,9 +718,9 @@ export default function WeddingSimulator() {
                                 <div className="flex justify-between items-end mb-6">
                                     <div>
                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">סקירה תקציבית</p>
-                                        <p className="font-bold text-slate-900 text-2xl tracking-tight">מדד כיסוי ההשקעה</p>
+                                        <p className="font-bold text-[#1F1A1A] text-2xl tracking-tight">מדד כיסוי ההשקעה</p>
                                     </div>
-                                    <div className="px-4 py-1.5 rounded-xl text-sm font-bold bg-slate-50 border border-slate-200 text-slate-700">
+                                    <div className="px-4 py-1.5 rounded-xl text-sm font-bold bg-[#F8F8F8] border border-slate-200 text-slate-700">
                                         {calculations.incomeProgress >= 100 ? 'החזרתם 100% ויותר! 🎉' : `מכוסה: ${calculations.incomeProgress.toFixed(1)}%`}
                                     </div>
                                 </div>
@@ -729,7 +729,7 @@ export default function WeddingSimulator() {
                                         initial={{ width: 0 }}
                                         animate={{ width: `${calculations.incomeProgress}%` }}
                                         transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                                        className={`h-full ${calculations.netBalance >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-pink-400 to-pink-500'}`}
+                                        className={`h-full ${calculations.netBalance >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-[#FF4D7F] to-pink-500'}`}
                                     ></motion.div>
                                     <div className="absolute top-0 bottom-0 border-l-2 border-slate-900/20 border-dashed z-10" style={{ left: '0%' }}></div>
                                 </div>
@@ -742,25 +742,25 @@ export default function WeddingSimulator() {
                             {/* Smart Insights Block */}
                             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white h-full flex flex-col justify-between">
                                 <div className="mb-6">
-                                    <p className="text-xs font-semibold text-pink-500 uppercase tracking-widest mb-1">תובנות הזהב</p>
-                                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <p className="text-xs font-semibold text-[#FF4D7F] uppercase tracking-widest mb-1">תובנות הזהב</p>
+                                    <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
                                         כדי לא להפסיד שקל
                                     </h2>
                                 </div>
-                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                <div className="bg-[#F8F8F8] p-6 rounded-2xl border border-slate-100">
                                     <p className="text-slate-500 text-sm font-semibold mb-1 uppercase tracking-wider">הממוצע הנדרש:</p>
-                                    <p className="text-5xl font-bold text-pink-600 tracking-tighter mb-4">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-base font-semibold text-slate-400">לאורח</span></p>
+                                    <p className="text-5xl font-bold text-[#FF4D7F] tracking-tighter mb-4">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-base font-semibold text-slate-400">לאורח</span></p>
                                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500">
                                         <span>סיוע הורים:</span>
-                                        <span className="text-slate-800">{(calculations.totalParentsGift).toLocaleString()} ₪</span>
+                                        <span className="text-[#333333]">{(calculations.totalParentsGift).toLocaleString()} ₪</span>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center mt-4">
                                     <div>
                                         <p className="text-xs text-slate-400 font-semibold mb-1 uppercase tracking-wider">עלות כוללת לאורח</p>
-                                        <p className="text-2xl font-bold text-pink-600">{formatMoney(calculations.costPerGuest)}</p>
+                                        <p className="text-2xl font-bold text-[#FF4D7F]">{formatMoney(calculations.costPerGuest)}</p>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <div className="bg-[#F8F8F8] p-3 rounded-xl border border-slate-100">
                                         <PieChart className="text-slate-400" size={24} strokeWidth={1.5} />
                                     </div>
                                 </div>
@@ -771,16 +771,16 @@ export default function WeddingSimulator() {
                                 <div>
                                     <div className="mb-6">
                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">התחייבויות לאולם</p>
-                                        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                        <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
                                             תקציר האולם
                                         </h2>
                                     </div>
 
-                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-6">
+                                    <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100 mb-6">
                                         <p className="text-sm font-medium text-slate-600 mb-4">{calculations.costBreakdown}</p>
                                         <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-4">
                                             <span className="font-semibold text-slate-500">סה"כ לתשלום:</span>
-                                            <span className="font-bold text-pink-600 text-xl">{formatMoney(calculations.venueCost)}</span>
+                                            <span className="font-bold text-[#FF4D7F] text-xl">{formatMoney(calculations.venueCost)}</span>
                                         </div>
 
                                         {/* Venue Payment Schedule Breakdown */}
@@ -801,7 +801,7 @@ export default function WeddingSimulator() {
                                 <div className="bg-white border border-slate-200 p-5 rounded-2xl mt-auto">
                                     <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">יתרה מאוחרת (ביום האירוע)</p>
                                     <div className="flex justify-between items-end">
-                                        <span className="text-3xl font-bold text-pink-600">{formatMoney(calculations.remainingToPay)}</span>
+                                        <span className="text-3xl font-bold text-[#FF4D7F]">{formatMoney(calculations.remainingToPay)}</span>
                                         <span className="text-xs text-slate-500 font-medium pb-1.5">מהמעטפות / כיס משותף</span>
                                     </div>
                                 </div>
@@ -822,8 +822,8 @@ export default function WeddingSimulator() {
 
                             {/* Scenarios Section - RSVP LOGIC */}
                             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white shadow-sm relative overflow-hidden group">
-                                <h2 className="text-xl font-bold mb-8 flex items-center gap-3 text-slate-900 tracking-tight">
-                                    <div className="bg-pink-50 border border-pink-100 text-pink-600 p-2.5 rounded-2xl shadow-sm">
+                                <h2 className="text-xl font-bold mb-8 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
+                                    <div className="bg-[#FFE5ED] border border-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl shadow-sm">
                                         <Users size={24} />
                                     </div>
                                     מחשבון מוזמנים והכנסות
@@ -839,7 +839,7 @@ export default function WeddingSimulator() {
                                                 value={invitedGuests}
                                                 onChange={(e) => setInvitedGuests(Number(e.target.value))}
                                                 onBlur={(e) => updateConfig('invited_guests', Number(e.target.value))}
-                                                className="w-24 px-3 py-2 text-xl font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-sm"
+                                                className="w-24 px-3 py-2 text-xl font-semibold text-[#333333] bg-[#F8F8F8] border border-slate-200 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-[#FF4D7F] shadow-sm"
                                             />
                                         </div>
                                         <input
@@ -847,16 +847,16 @@ export default function WeddingSimulator() {
                                             value={invitedGuests}
                                             onChange={(e) => setInvitedGuests(Number(e.target.value))}
                                             onMouseUp={(e) => updateConfig('invited_guests', Number((e.target as HTMLInputElement).value))}
-                                            className="w-full h-2.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-pink-600 shadow-inner"
+                                            className="w-full h-2.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#FF4D7F] shadow-inner"
                                         />
                                     </div>
 
                                     {/* No-Show Slider */}
-                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative group">
+                                    <div className="bg-[#F8F8F8] p-6 rounded-3xl border border-slate-100 relative group">
                                         <div className="flex justify-between items-center mb-4">
                                             <label className="font-semibold text-slate-700">אחוז אי-הגעה משוער (פחת)</label>
                                             <div className="flex items-center gap-1 bg-white px-4 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-                                                <span className="text-xl font-bold text-slate-800">{noShowPercent}%</span>
+                                                <span className="text-xl font-bold text-[#333333]">{noShowPercent}%</span>
                                             </div>
                                         </div>
                                         <input
@@ -870,9 +870,9 @@ export default function WeddingSimulator() {
                                     </div>
 
                                     {/* Actual Guests Result */}
-                                    <div className="flex justify-between items-center bg-pink-600 p-6 rounded-3xl shadow-[0_10px_20px_rgba(79,70,229,0.15)] text-white relative overflow-hidden group">
+                                    <div className="flex justify-between items-center bg-[#FF4D7F] p-6 rounded-3xl shadow-[0_10px_20px_rgba(79,70,229,0.15)] text-white relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-[40px] rounded-full"></div>
-                                        <span className="font-medium text-pink-100 text-lg relative z-10">צפי מגיעים בפועל:</span>
+                                        <span className="font-medium text-[#FFE5ED] text-lg relative z-10">צפי מגיעים בפועל:</span>
                                         <span className="text-4xl font-semibold tracking-tighter relative z-10 group-hover:scale-105 transition-transform origin-left">{guests} <span className="text-xl font-medium opacity-80 tracking-normal">אורחים</span></span>
                                     </div>
 
@@ -906,46 +906,46 @@ export default function WeddingSimulator() {
                             {/* Parents Section */}
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col justify-between group">
                                 <div>
-                                    <h2 className="text-xl font-bold text-slate-900 mb-8 flex items-center gap-3 tracking-tight">
-                                        <div className="bg-pink-50 p-2.5 rounded-2xl text-pink-500 border border-pink-100">
+                                    <h2 className="text-xl font-bold text-[#1F1A1A] mb-8 flex items-center gap-3 tracking-tight">
+                                        <div className="bg-[#FFE5ED] p-2.5 rounded-2xl text-[#FF4D7F] border border-[#FFDEDE]">
                                             <Heart size={24} fill="currentColor" />
                                         </div>
                                         עזרה מההורים
                                     </h2>
                                     <div className="space-y-4">
                                         {/* Nadav's Mom Input */}
-                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-slate-50 rounded-2xl border border-slate-100/50 shadow-sm gap-4 transition-colors">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-[#F8F8F8] rounded-2xl border border-slate-100/50 shadow-sm gap-4 transition-colors">
                                             <span className="font-semibold text-slate-700 text-lg">אמא של נדב</span>
                                             <div className="flex items-center gap-3">
                                                 <input
                                                     type="number"
                                                     value={nadavMomGift}
                                                     onChange={(e) => setNadavMomGift(Number(e.target.value))}
-                                                    className="w-32 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-xl font-bold text-center shadow-sm"
+                                                    className="w-32 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF4D7F] text-xl font-bold text-center shadow-sm"
                                                 />
                                                 <span className="text-slate-400 font-semibold text-xl">₪</span>
                                             </div>
                                         </div>
 
                                         {/* Lital's Parents Overview (Dynamic) */}
-                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-pink-50/30 rounded-2xl border border-pink-100/50 shadow-sm gap-4 transition-colors relative overflow-hidden">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-[#FFE5ED]/30 rounded-2xl border border-[#FFDEDE]/50 shadow-sm gap-4 transition-colors relative overflow-hidden">
                                             <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-400"></div>
                                             <div>
                                                 <span className="font-semibold text-slate-700 text-lg">ההורים של ליטל</span>
-                                                <p className="text-xs text-pink-500 font-medium tracking-wide mt-1">משלימים את יתרת עלות האולם</p>
+                                                <p className="text-xs text-[#FF4D7F] font-medium tracking-wide mt-1">משלימים את יתרת עלות האולם</p>
                                             </div>
-                                            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl border border-pink-100 shadow-sm">
-                                                <span className="w-auto min-w-[4rem] text-xl font-bold text-center text-pink-900">{calculations.litalParentsGift.toLocaleString()}</span>
-                                                <span className="text-pink-400 font-semibold text-xl">₪</span>
+                                            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl border border-[#FFDEDE] shadow-sm">
+                                                <span className="w-auto min-w-[4rem] text-xl font-bold text-center text-[#333333]">{calculations.litalParentsGift.toLocaleString()}</span>
+                                                <span className="text-[#FF4D7F] font-semibold text-xl">₪</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-8 bg-pink-600 rounded-2xl p-6 text-white shadow-md relative overflow-hidden group-hover:shadow-lg transition-shadow">
+                                <div className="mt-8 bg-[#FF4D7F] rounded-2xl p-6 text-white shadow-md relative overflow-hidden group-hover:shadow-lg transition-shadow">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-[30px] rounded-full"></div>
                                     <div className="flex justify-between items-center relative z-10">
-                                        <span className="font-medium text-pink-100 text-lg">סה"כ סיוע הורים:</span>
+                                        <span className="font-medium text-[#FFE5ED] text-lg">סה"כ סיוע הורים:</span>
                                         <span className="text-3xl font-bold tracking-tighter">{formatMoney(calculations.totalParentsGift)}</span>
                                     </div>
                                 </div>
@@ -966,8 +966,8 @@ export default function WeddingSimulator() {
                         >
 
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6 border-b border-slate-100 pb-6">
-                                <h2 className="text-2xl font-semibold flex items-center gap-3 text-slate-900 tracking-tight">
-                                    <div className="bg-pink-100 text-pink-600 p-2.5 rounded-2xl">
+                                <h2 className="text-2xl font-semibold flex items-center gap-3 text-[#1F1A1A] tracking-tight">
+                                    <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
                                         <Receipt size={24} />
                                     </div>
                                     יומן הוצאות ומקדמות
@@ -976,14 +976,14 @@ export default function WeddingSimulator() {
                                 {/* Safety Buffer Toggle */}
                                 <div className="flex items-center gap-3 bg-slate-100/80 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-slate-200 shadow-sm">
                                     <ShieldAlert size={20} className="text-slate-600" />
-                                    <span className="text-sm font-semibold text-slate-800">מקדם בלת"מים (+10%)</span>
+                                    <span className="text-sm font-semibold text-[#333333]">מקדם בלת"מים (+10%)</span>
                                     <button
                                         onClick={() => {
                                             const newVal = !useSafetyBuffer;
                                             setSafetyBuffer(newVal);
                                             updateConfig('use_safety_buffer', newVal);
                                         }}
-                                        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ${useSafetyBuffer ? 'bg-pink-500 shadow-inner' : 'bg-slate-300 shadow-inner'}`}
+                                        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ${useSafetyBuffer ? 'bg-[#FF4D7F] shadow-inner' : 'bg-slate-300 shadow-inner'}`}
                                     >
                                         <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${useSafetyBuffer ? '-translate-x-1.5' : '-translate-x-[26px]'}`} />
                                     </button>
@@ -1011,8 +1011,8 @@ export default function WeddingSimulator() {
                                                     exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
                                                     transition={{ duration: 0.2 }}
                                                     className={`p-3.5 rounded-2xl border transition-all flex flex-col gap-3 ${expense.paid
-                                                        ? 'bg-slate-50 border-slate-200 shadow-sm'
-                                                        : 'bg-white border-slate-100 hover:border-pink-300 hover:shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+                                                        ? 'bg-[#F8F8F8] border-slate-200 shadow-sm'
+                                                        : 'bg-white border-slate-100 hover:border-[#FFDEDE] hover:shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
                                                         }`}
                                                 >
                                                     <div className="grid grid-cols-12 gap-4 items-center">
@@ -1020,13 +1020,13 @@ export default function WeddingSimulator() {
                                                             <button
                                                                 onClick={() => toggleExpensePaid(expense.id)}
                                                                 className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${expense.paid
-                                                                    ? 'bg-pink-500 border-pink-600 text-white'
-                                                                    : 'bg-white border-slate-300 text-transparent hover:border-pink-400'
+                                                                    ? 'bg-[#FF4D7F] border-[#FF4D7F] text-white'
+                                                                    : 'bg-white border-slate-300 text-transparent hover:border-[#FF4D7F]'
                                                                     }`}
                                                             >
                                                                 <CheckCircle2 size={14} className={expense.paid ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
                                                             </button>
-                                                            <span className={`font-medium text-base truncate pr-2 flex-1 flex items-center gap-2 ${expense.paid ? 'text-slate-500 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
+                                                            <span className={`font-medium text-base truncate pr-2 flex-1 flex items-center gap-2 ${expense.paid ? 'text-slate-500 line-through opacity-70' : 'text-[#333333]'}`} title={expense.name}>
                                                                 <span className="text-lg flex-shrink-0">{getExpenseEmoji(expense.name)}</span>
                                                                 {expense.name}
                                                             </span>
@@ -1037,7 +1037,7 @@ export default function WeddingSimulator() {
                                                                     type="number"
                                                                     value={expense.amount}
                                                                     onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
-                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-white text-base font-semibold text-left outline-none transition-all shadow-inner group-hover:border-pink-200 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-[#F8F8F8] border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white text-base font-semibold text-left outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
                                                                         }`}
                                                                     readOnly={expense.paid}
                                                                 />
@@ -1050,11 +1050,11 @@ export default function WeddingSimulator() {
                                                                     type="number"
                                                                     value={expense.advance}
                                                                     onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
-                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-pink-50 border border-pink-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-pink-50/50 text-base font-semibold text-left text-pink-800 outline-none transition-all shadow-inner group-hover:border-pink-300 ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
                                                                         }`}
                                                                     readOnly={expense.paid}
                                                                 />
-                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500 font-semibold text-sm">₪</span>
+                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
                                                             </div>
                                                         </div>
                                                         <div className="col-span-1 flex justify-end">
@@ -1070,26 +1070,26 @@ export default function WeddingSimulator() {
                                                                 initial={{ height: 0, opacity: 0 }}
                                                                 animate={{ height: 'auto', opacity: 1 }}
                                                                 exit={{ height: 0, opacity: 0 }}
-                                                                className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3 overflow-hidden bg-slate-50 rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2"
+                                                                className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3 overflow-hidden bg-[#F8F8F8] rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2"
                                                             >
-                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-pink-400 focus-within:border-pink-400 transition-all">
+                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
                                                                     <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">איש קשר:</span>
                                                                     <input
                                                                         type="text"
                                                                         placeholder="הכנס שם ספק/איש קשר"
                                                                         value={expense.contact_name || ''}
                                                                         onChange={(e) => updateExpense(expense.id, 'contact_name', e.target.value)}
-                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-slate-800 placeholder-slate-400/70"
+                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
                                                                     />
                                                                 </div>
-                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-pink-400 focus-within:border-pink-400 transition-all">
+                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
                                                                     <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">טלפון:</span>
                                                                     <input
                                                                         type="tel"
                                                                         placeholder="05X-XXXXXXX"
                                                                         value={expense.contact_phone || ''}
                                                                         onChange={(e) => updateExpense(expense.id, 'contact_phone', e.target.value)}
-                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-slate-800 placeholder-slate-400/70"
+                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
                                                                         dir="ltr"
                                                                     />
                                                                 </div>
@@ -1102,29 +1102,29 @@ export default function WeddingSimulator() {
                                     </div>
 
                                     {/* Add new expense */}
-                                    <div className="bg-pink-50/50 p-6 rounded-3xl border border-pink-200 relative overflow-hidden group">
-                                        <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-500 rounded-r-3xl"></div>
-                                        <p className="text-sm font-medium text-pink-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                                    <div className="bg-[#FFE5ED]/50 p-6 rounded-3xl border border-[#FFDEDE] relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-1.5 h-full bg-[#FF4D7F] rounded-r-3xl"></div>
+                                        <p className="text-sm font-medium text-[#333333] mb-4 flex items-center gap-2 uppercase tracking-wide">
                                             הוספת ספק / הוצאה חדשה
                                         </p>
                                         <div className="grid grid-cols-12 gap-4">
                                             <div className="col-span-5">
-                                                <input type="text" placeholder="שם הספק (למשל: עיצוב פרחים)" value={newExpenseName} onChange={(e) => setNewExpenseName(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-pink-500 shadow-sm" />
+                                                <input type="text" placeholder="שם הספק (למשל: עיצוב פרחים)" value={newExpenseName} onChange={(e) => setNewExpenseName(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-[#FF4D7F] shadow-sm" />
                                             </div>
                                             <div className="col-span-3">
                                                 <div className="relative">
-                                                    <input type="number" placeholder="עלות כוללת" value={newExpenseAmount} onChange={(e) => setNewExpenseAmount(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-pink-500 text-left shadow-sm" />
+                                                    <input type="number" placeholder="עלות כוללת" value={newExpenseAmount} onChange={(e) => setNewExpenseAmount(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-[#FF4D7F] text-left shadow-sm" />
                                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
                                                 </div>
                                             </div>
                                             <div className="col-span-3">
                                                 <div className="relative">
-                                                    <input type="number" placeholder="מקדמה עכשיו" value={newExpenseAdvance} onChange={(e) => setNewExpenseAdvance(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-pink-500 text-left shadow-sm" />
+                                                    <input type="number" placeholder="מקדמה עכשיו" value={newExpenseAdvance} onChange={(e) => setNewExpenseAdvance(e.target.value)} className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-[#FF4D7F] text-left shadow-sm" />
                                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">₪</span>
                                                 </div>
                                             </div>
                                             <div className="col-span-1">
-                                                <button onClick={addExpense} className="w-full h-full bg-pink-600 hover:bg-pink-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition-all shadow-md">
+                                                <button onClick={addExpense} className="w-full h-full bg-[#FF4D7F] hover:bg-[#e63e6d] active:scale-95 text-white rounded-xl flex items-center justify-center transition-all shadow-md">
                                                     <Plus size={24} />
                                                 </button>
                                             </div>
@@ -1134,15 +1134,15 @@ export default function WeddingSimulator() {
                             </div>
 
                             {/* Total Block breakdown inside Expenses Tab */}
-                            <div className="mt-8 bg-slate-50/80 backdrop-blur-md rounded-3xl p-8 border border-slate-100 max-w-lg mr-auto shadow-sm">
-                                <h3 className="font-semibold text-slate-900 mb-5 flex items-center gap-2 text-xl tracking-tight">
+                            <div className="mt-8 bg-[#F8F8F8]/80 backdrop-blur-md rounded-3xl p-8 border border-slate-100 max-w-lg mr-auto shadow-sm">
+                                <h3 className="font-semibold text-[#1F1A1A] mb-5 flex items-center gap-2 text-xl tracking-tight">
                                     סיכום ספקים והוצאות נלוות
                                 </h3>
 
                                 <div className="space-y-4 text-base">
                                     <div className="flex justify-between items-center text-slate-600 font-medium pb-3 border-b border-slate-100">
                                         <span>בסיס הוצאות (ללא אולם):</span>
-                                        <span className="font-semibold text-slate-800 text-lg">{formatMoney(calculations.baseFixed)}</span>
+                                        <span className="font-semibold text-[#333333] text-lg">{formatMoney(calculations.baseFixed)}</span>
                                     </div>
 
                                     {useSafetyBuffer && (
@@ -1152,7 +1152,7 @@ export default function WeddingSimulator() {
                                         </div>
                                     )}
 
-                                    <div className="flex justify-between items-center text-pink-900 pt-3">
+                                    <div className="flex justify-between items-center text-[#333333] pt-3">
                                         <span className="font-medium text-lg">סה"כ ספקים משוער:</span>
                                         <span className="font-semibold text-3xl tracking-tight">{formatMoney(calculations.totalFixed)}</span>
                                     </div>
@@ -1174,8 +1174,8 @@ export default function WeddingSimulator() {
 
                             {/* Scenario Comparison */}
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
-                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-slate-900 tracking-tight">
-                                    <div className="bg-pink-100 text-pink-600 p-2.5 rounded-2xl">
+                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
+                                    <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
                                         <BarChart3 size={24} />
                                     </div>
                                     השוואת תרחישים
@@ -1183,11 +1183,11 @@ export default function WeddingSimulator() {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     {calculations.scenarios.map((s, i) => (
                                         <div key={i} className={`rounded-3xl p-6 border relative overflow-hidden ${s.color === 'rose' ? 'bg-rose-50/50 border-rose-200' :
-                                            s.color === 'pink' ? 'bg-pink-50/50 border-pink-200 ring-2 ring-pink-300' :
+                                            s.color === 'pink' ? 'bg-[#FFE5ED]/50 border-[#FFDEDE] ring-2 ring-[#FFDEDE]' :
                                                 'bg-emerald-50/50 border-emerald-200'
                                             }`}>
-                                            {s.color === 'pink' && <div className="absolute top-2 left-2 bg-pink-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">נוכחי</div>}
-                                            <p className={`text-sm font-medium uppercase tracking-widest mb-4 ${s.color === 'rose' ? 'text-rose-600' : s.color === 'pink' ? 'text-pink-600' : 'text-emerald-600'
+                                            {s.color === 'pink' && <div className="absolute top-2 left-2 bg-[#FF4D7F] text-white text-xs font-medium px-2 py-0.5 rounded-full">נוכחי</div>}
+                                            <p className={`text-sm font-medium uppercase tracking-widest mb-4 ${s.color === 'rose' ? 'text-rose-600' : s.color === 'pink' ? 'text-[#FF4D7F]' : 'text-emerald-600'
                                                 }`}>{s.label}</p>
                                             <div className="space-y-3 text-sm">
                                                 <div className="flex justify-between"><span className="text-slate-600">ממוצע מתנה:</span><span className="font-semibold">{formatMoney(s.avgGift)}</span></div>
@@ -1207,24 +1207,24 @@ export default function WeddingSimulator() {
                             </div>
 
                             {/* Savings Tracker */}
-                            <div className="bg-gradient-to-br from-slate-900 via-pink-950 to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white border border-white/10 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-48 h-48 bg-pink-500/10 blur-[60px] rounded-full pointer-events-none"></div>
+                            <div className="bg-gradient-to-br from-slate-900 via-[#2a0a14] to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white border border-white/10 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-48 h-48 bg-[#FF4D7F]/10 blur-[60px] rounded-full pointer-events-none"></div>
                                 <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 tracking-tight relative z-10">
                                     <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm">
-                                        <Banknote className="text-pink-300" size={24} />
+                                        <Banknote className="text-[#FFDEDE]" size={24} />
                                     </div>
                                     מעקב חיסכון חודשי
                                 </h2>
                                 <div className="space-y-6 relative z-10">
                                     <div>
                                         <div className="flex justify-between items-center mb-3">
-                                            <label className="font-medium text-pink-200">כמה אתם חוסכים בחודש?</label>
+                                            <label className="font-medium text-[#FFE5ED]">כמה אתם חוסכים בחודש?</label>
                                             <input
                                                 type="number"
                                                 value={monthlySaving}
                                                 onChange={(e) => setMonthlySaving(Number(e.target.value))}
                                                 onBlur={(e) => updateConfig('monthly_saving', Number(e.target.value))}
-                                                className="w-28 px-3 py-2 text-xl font-semibold text-pink-400 bg-white/10 border border-white/20 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-pink-500 backdrop-blur-sm"
+                                                className="w-28 px-3 py-2 text-xl font-semibold text-[#FF4D7F] bg-white/10 border border-white/20 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-[#FF4D7F] backdrop-blur-sm"
                                             />
                                         </div>
                                         <input
@@ -1232,13 +1232,13 @@ export default function WeddingSimulator() {
                                             value={monthlySaving}
                                             onChange={(e) => setMonthlySaving(Number(e.target.value))}
                                             onMouseUp={(e) => updateConfig('monthly_saving', Number((e.target as HTMLInputElement).value))}
-                                            className="w-full h-2.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-pink-500"
+                                            className="w-full h-2.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#FF4D7F]"
                                         />
                                     </div>
                                     <div className="bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 space-y-3">
-                                        <div className="flex justify-between text-pink-200"><span>חודשים שנותרו:</span><span className="font-semibold text-white">{monthsLeft}</span></div>
-                                        <div className="flex justify-between text-pink-200"><span>סה"כ חיסכון עד החתונה:</span><span className="font-semibold text-pink-400 text-xl">{formatMoney(totalSavingsByWedding)}</span></div>
-                                        <div className="flex justify-between text-pink-200"><span>מקדמות שנדרשות:</span><span className="font-semibold text-pink-300">{formatMoney(savingsNeeded)}</span></div>
+                                        <div className="flex justify-between text-[#FFE5ED]"><span>חודשים שנותרו:</span><span className="font-semibold text-white">{monthsLeft}</span></div>
+                                        <div className="flex justify-between text-[#FFE5ED]"><span>סה"כ חיסכון עד החתונה:</span><span className="font-semibold text-[#FF4D7F] text-xl">{formatMoney(totalSavingsByWedding)}</span></div>
+                                        <div className="flex justify-between text-[#FFE5ED]"><span>מקדמות שנדרשות:</span><span className="font-semibold text-[#FFDEDE]">{formatMoney(savingsNeeded)}</span></div>
                                         <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden mt-2">
                                             <motion.div
                                                 initial={{ width: 0 }}
@@ -1247,7 +1247,7 @@ export default function WeddingSimulator() {
                                                 className={`h-full rounded-full ${savingsProgress >= 100 ? 'bg-pink-400' : 'bg-slate-400'}`}
                                             />
                                         </div>
-                                        <p className="text-xs text-pink-300 text-center mt-1">
+                                        <p className="text-xs text-[#FFDEDE] text-center mt-1">
                                             {savingsProgress >= 100 ? '🎉 מכוסה לחלוטין!' : `${savingsProgress.toFixed(0)}% מכוסה — צריך עוד ${formatMoney(Math.max(0, savingsNeeded - totalSavingsByWedding))}`}
                                         </p>
                                     </div>
@@ -1256,8 +1256,8 @@ export default function WeddingSimulator() {
 
                             {/* Expense Breakdown Donut */}
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-slate-900 tracking-tight">
-                                    <div className="bg-pink-100 text-pink-600 p-2.5 rounded-2xl">
+                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
+                                    <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
                                         <PieChart size={24} />
                                     </div>
                                     פילוח הוצאות
@@ -1297,7 +1297,7 @@ export default function WeddingSimulator() {
                                                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                                                     <span className="text-slate-700 font-medium truncate">{cat.name}</span>
                                                     <span className="text-slate-400 mr-auto">{pct}%</span>
-                                                    <span className="font-semibold text-slate-800">{formatMoney(cat.amount)}</span>
+                                                    <span className="font-semibold text-[#333333]">{formatMoney(cat.amount)}</span>
                                                 </div>
                                             );
                                         })}
@@ -1308,19 +1308,19 @@ export default function WeddingSimulator() {
                             {/* Wedding Checklist */}
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-xl font-bold flex items-center gap-3 text-slate-900 tracking-tight">
-                                        <div className="bg-pink-50 border border-pink-100 text-pink-600 p-2.5 rounded-2xl shadow-sm">
+                                    <h2 className="text-xl font-bold flex items-center gap-3 text-[#1F1A1A] tracking-tight">
+                                        <div className="bg-[#FFE5ED] border border-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl shadow-sm">
                                             <CheckCircle2 size={24} />
                                         </div>
                                         צ'קליסט חתונה
                                     </h2>
-                                    <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                                    <div className="flex items-center gap-3 bg-[#F8F8F8] px-4 py-2 rounded-xl border border-slate-200">
                                         <div className="h-2.5 w-24 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${checklistProgress}%` }}
                                                 transition={{ duration: 0.5 }}
-                                                className="h-full bg-pink-500 rounded-full"
+                                                className="h-full bg-[#FF4D7F] rounded-full"
                                             />
                                         </div>
                                         <span className="text-sm font-semibold text-slate-700">{checklistDone}/{checklistTotal}</span>
@@ -1336,19 +1336,19 @@ export default function WeddingSimulator() {
                                             </div>
                                             <div className="space-y-3">
                                                 {smartChecklistItems.filter(item => item.category === category).map(item => (
-                                                    <div key={item.id} className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${item.isDone ? 'bg-slate-50 border-slate-200 opacity-70' :
+                                                    <div key={item.id} className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${item.isDone ? 'bg-[#F8F8F8] border-slate-200 opacity-70' :
                                                         item.isLate ? 'bg-rose-50 border-rose-200' :
-                                                            'bg-white border-slate-100 hover:border-pink-300 hover:shadow-sm'
+                                                            'bg-white border-slate-100 hover:border-[#FFDEDE] hover:shadow-sm'
                                                         }`}
                                                         onClick={() => toggleChecklistItem(item.id)}>
                                                         {item.isDone ?
-                                                            <CheckCircle2 size={22} className="text-pink-500 flex-shrink-0 mt-0.5" /> :
-                                                            <Circle size={22} className={`flex-shrink-0 mt-0.5 transition-colors ${item.isLate ? 'text-rose-400 group-hover:text-rose-600' : 'text-slate-300 group-hover:text-pink-400'}`} />
+                                                            <CheckCircle2 size={22} className="text-[#FF4D7F] flex-shrink-0 mt-0.5" /> :
+                                                            <Circle size={22} className={`flex-shrink-0 mt-0.5 transition-colors ${item.isLate ? 'text-rose-400 group-hover:text-rose-600' : 'text-slate-300 group-hover:text-[#FF4D7F]'}`} />
                                                         }
                                                         <div className="flex-1 flex flex-col">
                                                             <span className={`font-medium ${item.isDone ? 'text-slate-400 line-through' :
                                                                 item.isLate ? 'text-rose-900' :
-                                                                    'text-slate-800'
+                                                                    'text-[#333333]'
                                                                 }`}>{item.text}</span>
                                                             {item.isLate && !item.isDone && (
                                                                 <span className="text-[10px] font-semibold tracking-wider text-rose-500 uppercase mt-0.5 animate-pulse">
@@ -1374,9 +1374,9 @@ export default function WeddingSimulator() {
                                         value={newChecklistText}
                                         onChange={(e) => setNewChecklistText(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
-                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-pink-500 shadow-sm"
+                                        className="flex-1 px-4 py-3 bg-[#F8F8F8] border border-slate-200 rounded-xl text-base font-medium outline-none focus:ring-2 focus:ring-[#FF4D7F] shadow-sm"
                                     />
-                                    <button onClick={addChecklistItem} className="px-5 py-3 bg-pink-600 hover:bg-pink-700 active:scale-95 text-white rounded-xl font-medium transition-all shadow-md flex items-center gap-2">
+                                    <button onClick={addChecklistItem} className="px-5 py-3 bg-[#FF4D7F] hover:bg-[#e63e6d] active:scale-95 text-white rounded-xl font-medium transition-all shadow-md flex items-center gap-2">
                                         <Plus size={18} /> הוסף
                                     </button>
                                 </div>
