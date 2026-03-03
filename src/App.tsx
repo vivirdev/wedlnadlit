@@ -448,8 +448,15 @@ export default function WeddingSimulator() {
         if (!configId) return;
         const val = field === 'contact_name' || field === 'contact_phone' ? value : Number(value);
         setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: val } : e));
-        await supabase.from('expenses').update({ [field]: val }).eq('id', id);
-        await loadData(configId);
+
+        // Don't wait for loadData here as it causes focus loss while typing text inputs
+        supabase.from('expenses').update({ [field]: val }).eq('id', id).then(() => {
+            // Optional: we can reload data in background if needed, but realtime should catch it
+            // or we rely on the local optimistic update.
+            if (field !== 'contact_name' && field !== 'contact_phone') {
+                loadData(configId);
+            }
+        });
     };
 
     const toggleExpensePaid = async (id: number) => {
@@ -1047,26 +1054,26 @@ export default function WeddingSimulator() {
                                                                 initial={{ height: 0, opacity: 0 }}
                                                                 animate={{ height: 'auto', opacity: 1 }}
                                                                 exit={{ height: 0, opacity: 0 }}
-                                                                className="pt-3 border-t border-emerald-200/60 flex flex-col sm:flex-row items-center gap-4 overflow-hidden"
+                                                                className="pt-3 border-t border-emerald-200/60 flex flex-col sm:flex-row items-center gap-3 overflow-hidden bg-emerald-50/30 rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2"
                                                             >
-                                                                <div className="flex-1 w-full flex items-center gap-2">
-                                                                    <span className="text-emerald-700/80 text-sm font-medium whitespace-nowrap">איש קשר:</span>
+                                                                <div className="flex-1 w-full flex items-center bg-white border border-emerald-200/80 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-emerald-400 focus-within:border-emerald-400 transition-all">
+                                                                    <span className="bg-emerald-100/50 text-emerald-800 text-xs font-semibold px-3 py-2.5 border-l border-emerald-100 whitespace-nowrap">איש קשר:</span>
                                                                     <input
                                                                         type="text"
-                                                                        placeholder="למשל: ירון"
+                                                                        placeholder="הכנס שם ספק/איש קשר"
                                                                         value={expense.contact_name || ''}
                                                                         onChange={(e) => updateExpense(expense.id, 'contact_name', e.target.value)}
-                                                                        className="w-full px-3 py-2 bg-emerald-100/30 border border-emerald-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900 placeholder-emerald-600/50 shadow-inner"
+                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-slate-800 placeholder-slate-400/70"
                                                                     />
                                                                 </div>
-                                                                <div className="flex-1 w-full flex items-center gap-2">
-                                                                    <span className="text-emerald-700/80 text-sm font-medium whitespace-nowrap">טלפון:</span>
+                                                                <div className="flex-1 w-full flex items-center bg-white border border-emerald-200/80 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-emerald-400 focus-within:border-emerald-400 transition-all">
+                                                                    <span className="bg-emerald-100/50 text-emerald-800 text-xs font-semibold px-3 py-2.5 border-l border-emerald-100 whitespace-nowrap">טלפון:</span>
                                                                     <input
                                                                         type="tel"
                                                                         placeholder="05X-XXXXXXX"
                                                                         value={expense.contact_phone || ''}
                                                                         onChange={(e) => updateExpense(expense.id, 'contact_phone', e.target.value)}
-                                                                        className="w-full px-3 py-2 bg-emerald-100/30 border border-emerald-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900 placeholder-emerald-600/50 shadow-inner"
+                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-slate-800 placeholder-slate-400/70"
                                                                         dir="ltr"
                                                                     />
                                                                 </div>
