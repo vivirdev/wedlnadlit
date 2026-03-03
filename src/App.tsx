@@ -20,6 +20,35 @@ interface ChecklistItem {
     category: string;
 }
 
+// Emoji mapping for expense names
+const getExpenseEmoji = (name: string): string => {
+    const lower = name.toLowerCase();
+    const map: [string[], string][] = [
+        [['אולם', 'גן', 'אירוע', 'מקום', 'venue'], '🏛️'],
+        [['צלם', 'צילום', 'וידאו', 'מגנטים', 'photo', 'video'], '📸'],
+        [['dj', 'דיג\'יי', 'מוזיקה', 'תקליטן', 'להקה', 'music'], '🎵'],
+        [['שמלה', 'חליפה', 'בגד', 'dress', 'suit', 'לבוש'], '👗'],
+        [['פרחים', 'עיצוב', 'סידור', 'flower', 'decor', 'קישוט'], '💐'],
+        [['איפור', 'שיער', 'תסרוקת', 'makeup', 'hair', 'סטייל'], '💄'],
+        [['הזמנות', 'הזמנה', 'דפוס', 'invitation', 'מיתוג'], '💌'],
+        [['רב', 'חופה', 'טקס', 'rabbi', 'ceremony'], '💍'],
+        [['הסעות', 'הסעה', 'רכב', 'לימוזינה', 'transport'], '🚐'],
+        [['עוגה', 'עוגת', 'קינוח', 'מתוק', 'cake', 'dessert'], '🎂'],
+        [['קייטרינג', 'אוכל', 'מנות', 'catering', 'food', 'בר'], '🍽️'],
+        [['ריקוד', 'כוריאוגרף', 'dance'], '💃'],
+        [['זמר', 'הופעה', 'אמן', 'singer', 'performer'], '🎤'],
+        [['טבעות', 'טבעת', 'ring'], '💎'],
+        [['ביטוח', 'insurance'], '🛡️'],
+        [['מתנות', 'מתנה', 'gift', 'שי'], '🎁'],
+        [['נסיעה', 'ירח דבש', 'honeymoon', 'חופשה', 'טיסה'], '✈️'],
+        [['מלון', 'לינה', 'hotel'], '🏨'],
+    ];
+    for (const [keywords, emoji] of map) {
+        if (keywords.some(kw => lower.includes(kw))) return emoji;
+    }
+    return '📋';
+};
+
 export default function WeddingSimulator() {
     // Auth State
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -584,25 +613,41 @@ export default function WeddingSimulator() {
                     transition={{ delay: 0.1 }}
                     className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:px-8"
                 >
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">הכנסות והורים</p>
-                        <p className="text-3xl font-extrabold text-slate-900 tracking-tight group-hover:text-pink-600 transition-colors">{formatMoney(calculations.totalIncome)}</p>
+                    {/* Income Card - Emerald */}
+                    <div className="bg-emerald-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.12)] transition-all group border border-emerald-100/60">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">💰</span>
+                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">הכנסות והורים</p>
+                        </div>
+                        <p className="text-3xl font-extrabold text-emerald-900 tracking-tight">{formatMoney(calculations.totalIncome)}</p>
                     </div>
 
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100 relative overflow-hidden">
-                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-slate-200"></div>}
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">סה"כ הוצאות</p>
-                        <p className="text-3xl font-extrabold text-slate-900 tracking-tight group-hover:text-pink-600 transition-colors">{formatMoney(calculations.totalExpenses)}</p>
+                    {/* Expenses Card - Amber */}
+                    <div className="bg-amber-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(245,158,11,0.12)] transition-all group border border-amber-100/60 relative overflow-hidden">
+                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-amber-300"></div>}
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">🧾</span>
+                            <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">סה"כ הוצאות</p>
+                        </div>
+                        <p className="text-3xl font-extrabold text-amber-900 tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
                     </div>
 
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(236,72,153,0.1)] transition-all group border border-transparent hover:border-pink-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">מקדמות</p>
-                        <p className="text-3xl font-extrabold text-slate-900 tracking-tight group-hover:text-pink-600 transition-colors">{formatMoney(calculations.totalAdvancesPaid)}</p>
+                    {/* Advances Card - Blue */}
+                    <div className="bg-sky-50 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(14,165,233,0.12)] transition-all group border border-sky-100/60">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">💳</span>
+                            <p className="text-xs font-bold text-sky-600 uppercase tracking-widest">מקדמות ששולמו</p>
+                        </div>
+                        <p className="text-3xl font-extrabold text-sky-900 tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
                     </div>
 
-                    <div className="bg-pink-500 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(236,72,153,0.25)] relative overflow-hidden group">
+                    {/* Net Balance Card - Pink gradient */}
+                    <div className={`rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(236,72,153,0.25)] relative overflow-hidden group ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-pink-500 to-rose-500' : 'bg-gradient-to-br from-rose-600 to-red-600'}`}>
                         <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/20 rounded-full blur-2xl group-hover:bg-white/30 transition-all"></div>
-                        <p className="text-xs font-bold text-pink-100 uppercase tracking-widest mb-3 relative z-10">רווח משוער</p>
+                        <div className="flex items-center gap-2 mb-3 relative z-10">
+                            <span className="text-lg">{calculations.netBalance >= 0 ? '🎉' : '⚠️'}</span>
+                            <p className="text-xs font-bold text-white/80 uppercase tracking-widest">רווח משוער</p>
+                        </div>
                         <div className="flex items-center gap-2 relative z-10">
                             {calculations.netBalance >= 0 ? <TrendingUp className="text-white opacity-80" size={24} /> : <TrendingDown className="text-rose-200" size={24} />}
                             <p className="text-3xl font-extrabold text-white tracking-tight">
@@ -993,7 +1038,8 @@ export default function WeddingSimulator() {
                                                             >
                                                                 <CheckCircle2 size={14} className={expense.paid ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
                                                             </button>
-                                                            <span className={`font-medium text-base truncate pr-2 flex-1 ${expense.paid ? 'text-slate-500 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
+                                                            <span className={`font-medium text-base truncate pr-2 flex-1 flex items-center gap-2 ${expense.paid ? 'text-slate-500 line-through opacity-70' : 'text-slate-800'}`} title={expense.name}>
+                                                                <span className="text-lg flex-shrink-0">{getExpenseEmoji(expense.name)}</span>
                                                                 {expense.name}
                                                             </span>
                                                         </div>
