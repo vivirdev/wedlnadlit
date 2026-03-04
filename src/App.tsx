@@ -837,17 +837,81 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
-                            {/* Venue Details */}
-                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col justify-between">
+                            {/* CPI Indexation Card */}
+                            <div className={`rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border flex flex-col justify-between ${cpiData.changePercent > 0 ? 'bg-rose-50/30 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50/30 border-emerald-200' : 'bg-white border-white'}`}>
                                 <div>
-                                    <div className="mb-6">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">התחייבויות לאולם</p>
-                                        <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
-                                            תקציר האולם
-                                        </h2>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div>
+                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">הצמדה למדד</p>
+                                            <h2 className="text-xl font-bold text-[#1F1A1A]">מדד המחירים לצרכן</h2>
+                                        </div>
+                                        {cpiData.loading ? (
+                                            <RefreshCw size={16} className="text-slate-400 animate-spin" />
+                                        ) : (
+                                            <span className="text-[10px] font-medium text-slate-400 bg-white px-2.5 py-1 rounded-full border border-slate-200">עדכון: {cpiData.currentMonth}</span>
+                                        )}
                                     </div>
 
-                                    <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100 mb-6">
+                                    {cpiData.loading ? (
+                                        <div className="flex items-center gap-2 text-sm text-slate-500 bg-[#F8F8F8] p-6 rounded-2xl border border-slate-100">
+                                            <RefreshCw size={14} className="animate-spin" />
+                                            <span>טוען נתוני מדד...</span>
+                                        </div>
+                                    ) : cpiData.error ? (
+                                        <p className="text-sm text-rose-500 font-medium bg-rose-50 p-4 rounded-2xl">שגיאה: {cpiData.error}</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100 space-y-3">
+                                                <div className="flex justify-between text-sm items-center">
+                                                    <span className="text-slate-600 font-medium">מדד בסיס (ינואר 2026):</span>
+                                                    <span className="font-bold text-slate-700">{cpiData.baseCpi.toFixed(1)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm items-center">
+                                                    <span className="text-slate-600 font-medium">מדד נוכחי ({cpiData.currentMonth}):</span>
+                                                    <span className="font-bold text-slate-700">{cpiData.currentCpi.toFixed(1)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm items-center border-t border-slate-200/70 pt-3">
+                                                    <span className="text-slate-600 font-medium">שינוי במדד:</span>
+                                                    <span className={`font-bold flex items-center gap-1 ${cpiData.changePercent > 0 ? 'text-rose-600' : cpiData.changePercent < 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        {cpiData.changePercent > 0 ? <ArrowUpRight size={14} /> : cpiData.changePercent < 0 ? <ArrowDownRight size={14} /> : null}
+                                                        {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {calculations.indexationCapped !== 0 && (
+                                                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                                                    <div className="flex justify-between text-sm items-center">
+                                                        <span className="text-slate-600 font-medium">סכום הצמדה ({Math.abs(cpiData.changePercent) > 1 ? 'מופחת 50%' : 'מלא'}):</span>
+                                                        <span className={`font-bold ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                            {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
+                                                        </span>
+                                                    </div>
+                                                    {Math.abs(cpiData.changePercent) > 1 && (
+                                                        <p className="text-[10px] text-slate-400 font-medium">* לפי סעיף 3.4 בהסכם, הפרשי ההצמדה מופחתים ב-50% כי עלו על 1%</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className={`mt-6 p-5 rounded-2xl border ${cpiData.changePercent > 0 ? 'bg-rose-50 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-[#F8F8F8] border-slate-100'}`}>
+                                    <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">תשלום אחרון + הצמדה</p>
+                                    <span className="text-3xl font-bold text-[#FF4D7F]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
+                                </div>
+                            </div>
+
+                            {/* Venue Details - Full Width */}
+                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
+                                <div className="mb-6">
+                                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">התחייבויות לאולם</p>
+                                    <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
+                                        תקציר האולם
+                                    </h2>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100">
                                         <p className="text-sm font-medium text-slate-600 mb-4">{calculations.costBreakdown}</p>
                                         <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-4">
                                             <span className="font-semibold text-slate-500">סה"כ לתשלום:</span>
@@ -867,69 +931,11 @@ export default function WeddingSimulator() {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* CPI Indexation Section */}
-                                <div className={`border p-5 rounded-2xl ${cpiData.changePercent > 0 ? 'bg-rose-50/50 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                                    <div className="flex justify-between items-center mb-3">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">הצמדה למדד המחירים לצרכן</p>
-                                        {cpiData.loading ? (
-                                            <RefreshCw size={14} className="text-slate-400 animate-spin" />
-                                        ) : (
-                                            <span className="text-[10px] font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">עדכון: {cpiData.currentMonth}</span>
-                                        )}
-                                    </div>
-
-                                    {cpiData.loading ? (
-                                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                                            <RefreshCw size={14} className="animate-spin" />
-                                            <span>טוען נתוני מדד...</span>
-                                        </div>
-                                    ) : cpiData.error ? (
-                                        <p className="text-sm text-rose-500 font-medium">שגיאה: {cpiData.error}</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between text-sm items-center">
-                                                <span className="text-slate-600 font-medium">מדד בסיס (ינואר 2026):</span>
-                                                <span className="font-bold text-slate-700">{cpiData.baseCpi.toFixed(1)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm items-center">
-                                                <span className="text-slate-600 font-medium">מדד נוכחי ({cpiData.currentMonth}):</span>
-                                                <span className="font-bold text-slate-700">{cpiData.currentCpi.toFixed(1)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm items-center border-t border-slate-200/70 pt-3">
-                                                <span className="text-slate-600 font-medium">שינוי במדד:</span>
-                                                <span className={`font-bold flex items-center gap-1 ${cpiData.changePercent > 0 ? 'text-rose-600' : cpiData.changePercent < 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                    {cpiData.changePercent > 0 ? <ArrowUpRight size={14} /> : cpiData.changePercent < 0 ? <ArrowDownRight size={14} /> : null}
-                                                    {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
-                                                </span>
-                                            </div>
-                                            {calculations.indexationCapped !== 0 && (
-                                                <>
-                                                    <div className="flex justify-between text-sm items-center">
-                                                        <span className="text-slate-600 font-medium">סכום הצמדה ({Math.abs(cpiData.changePercent) > 1 ? 'מופחת 50%' : 'מלא'}):</span>
-                                                        <span className={`font-bold ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                            {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
-                                                        </span>
-                                                    </div>
-                                                    {Math.abs(cpiData.changePercent) > 1 && (
-                                                        <p className="text-[10px] text-slate-400 font-medium">* לפי סעיף 3.4 בהסכם, הפרשי ההצמדה מופחתים ב-50% כי עלו על 1%</p>
-                                                    )}
-                                                </>
-                                            )}
-                                            <div className={`flex justify-between items-center text-sm pt-3 border-t ${cpiData.changePercent > 0 ? 'border-rose-200' : cpiData.changePercent < 0 ? 'border-emerald-200' : 'border-slate-200'}`}>
-                                                <span className="font-semibold text-slate-700">תשלום אחרון + הצמדה:</span>
-                                                <span className="font-bold text-lg text-[#FF4D7F]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="bg-white border border-slate-200 p-5 rounded-2xl mt-auto">
-                                    <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">יתרה מאוחרת (ביום האירוע)</p>
-                                    <div className="flex justify-between items-end">
-                                        <span className="text-3xl font-bold text-[#FF4D7F]">{formatMoney(calculations.remainingToPay)}</span>
-                                        <span className="text-xs text-slate-500 font-medium pb-1.5">מהמעטפות / כיס משותף</span>
+                                    <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-center items-center text-center">
+                                        <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">יתרה מאוחרת (ביום האירוע)</p>
+                                        <span className="text-4xl font-bold text-[#FF4D7F]">{formatMoney(calculations.remainingToPay)}</span>
+                                        <span className="text-xs text-slate-500 font-medium mt-2">מהמעטפות / כיס משותף</span>
                                     </div>
                                 </div>
                             </div>
