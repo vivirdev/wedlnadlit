@@ -338,12 +338,13 @@ export default function WeddingSimulator() {
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
 
-        // CPI Indexation on the remaining 50%
+        // CPI Indexation — applies to full contract value (225 × 610 = 137,250)
+        // The resulting difference is added/subtracted from the final payment
         const venueRemainder = venueCost - venueAdvance;
         const cpiChangeRatio = (cpiData.currentCpi - cpiData.baseCpi) / cpiData.baseCpi;
-        const rawIndexation = venueRemainder * cpiChangeRatio;
-        // Cap clause: if indexation exceeds 1% of payment, only 50% of indexation applies
-        const indexationCapped = Math.abs(rawIndexation) > venueRemainder * 0.01
+        const rawIndexation = venueBaseContractValue * cpiChangeRatio;
+        // Cap clause (3.4): if indexation exceeds 1% of total contract, only 50% applies
+        const indexationCapped = Math.abs(rawIndexation) > venueBaseContractValue * 0.01
             ? rawIndexation * 0.5
             : rawIndexation;
         const adjustedVenueRemainder = venueRemainder + indexationCapped;
@@ -917,7 +918,7 @@ export default function WeddingSimulator() {
                                                 </>
                                             )}
                                             <div className={`flex justify-between items-center text-sm pt-3 border-t ${cpiData.changePercent > 0 ? 'border-rose-200' : cpiData.changePercent < 0 ? 'border-emerald-200' : 'border-slate-200'}`}>
-                                                <span className="font-semibold text-slate-700">יתרה 50% מותאמת:</span>
+                                                <span className="font-semibold text-slate-700">תשלום אחרון + הצמדה:</span>
                                                 <span className="font-bold text-lg text-[#FF4D7F]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
                                             </div>
                                         </div>
