@@ -260,12 +260,17 @@ export default function WeddingSimulator() {
     // Calculations
     const calculations = useMemo(() => {
         // 1. Calculate Venue Cost based on Contract Tiers
+        // Minimum 225 guests commitment - even if fewer arrive, we pay for 225
+        const minVenueGuests = 225;
         let venueCost = 0;
         let costBreakdown = '';
+        const effectiveVenueGuests = Math.max(guests, minVenueGuests);
 
-        if (guests < 250) {
-            venueCost = guests * 610;
-            costBreakdown = `${guests} אורחים לפי 610 ₪ למנה`;
+        if (effectiveVenueGuests < 250) {
+            venueCost = effectiveVenueGuests * 610;
+            costBreakdown = guests < minVenueGuests
+                ? `מינימום התחייבות: ${minVenueGuests} אורחים לפי 610 ₪ למנה (${guests} מגיעים בפועל)`
+                : `${effectiveVenueGuests} אורחים לפי 610 ₪ למנה`;
         } else {
             const baseCost = 250 * 586;
             const extraGuests = guests - 250;
