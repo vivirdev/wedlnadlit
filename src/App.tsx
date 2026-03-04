@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock } from 'lucide-react';
+import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -18,6 +18,15 @@ interface ChecklistItem {
     text: string;
     done: boolean;
     category: string;
+}
+
+interface CpiData {
+    baseCpi: number;       // CPI at contract signing (Jan 2026)
+    currentCpi: number;    // Latest CPI
+    currentMonth: string;  // e.g. "ינואר 2026"
+    changePercent: number; // % change
+    loading: boolean;
+    error: string | null;
 }
 
 // Emoji mapping for expense names
@@ -131,6 +140,17 @@ export default function WeddingSimulator() {
     // User stated both advances are based on the 225 guests @ 610 fixed amount
     const venueAdvanceFixedGuests = 225;
     const venueAdvanceFixedRate = 610;
+
+    // CPI Indexation State
+    const VENUE_CONTRACT_BASE_CPI = 103.3; // January 2026 — last CPI published before contract signing (24.2.2026)
+    const [cpiData, setCpiData] = useState<CpiData>({
+        baseCpi: VENUE_CONTRACT_BASE_CPI,
+        currentCpi: VENUE_CONTRACT_BASE_CPI,
+        currentMonth: 'ינואר 2026',
+        changePercent: 0,
+        loading: true,
+        error: null,
+    });
 
     // Safety Buffer State
     const [useSafetyBuffer, setSafetyBuffer] = useState(true);
@@ -246,6 +266,40 @@ export default function WeddingSimulator() {
         }
     }, [isAuthenticated, configId]);
 
+    // Fetch CPI data from CBS via Supabase Edge Function
+    useEffect(() => {
+        const fetchCpi = async () => {
+            try {
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const res = await fetch(`${supabaseUrl}/functions/v1/cpi-proxy`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                const dates = data?.month?.[0]?.date;
+                if (!dates || dates.length === 0) throw new Error('No CPI data returned');
+
+                // Latest CPI is the first entry
+                const latest = dates[0];
+                const currentCpi = latest.currBase.value;
+                const currentMonth = `${latest.monthDesc} ${latest.year}`;
+                const baseCpi = VENUE_CONTRACT_BASE_CPI;
+                const changePercent = ((currentCpi - baseCpi) / baseCpi) * 100;
+
+                setCpiData({
+                    baseCpi,
+                    currentCpi,
+                    currentMonth,
+                    changePercent,
+                    loading: false,
+                    error: null,
+                });
+            } catch (err: any) {
+                setCpiData(prev => ({ ...prev, loading: false, error: err.message || 'שגיאה בטעינת מדד' }));
+            }
+        };
+        fetchCpi();
+    }, []);
+
     // Update remote config helper
     const updateConfig = async (field: string, value: any) => {
         if (!configId) return;
@@ -283,6 +337,16 @@ export default function WeddingSimulator() {
         const venueAdvance1 = venueBaseContractValue * (venueAdvance1Percent / 100);
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
+
+        // CPI Indexation on the remaining 50%
+        const venueRemainder = venueCost - venueAdvance;
+        const cpiChangeRatio = (cpiData.currentCpi - cpiData.baseCpi) / cpiData.baseCpi;
+        const rawIndexation = venueRemainder * cpiChangeRatio;
+        // Cap clause: if indexation exceeds 1% of payment, only 50% of indexation applies
+        const indexationCapped = Math.abs(rawIndexation) > venueRemainder * 0.01
+            ? rawIndexation * 0.5
+            : rawIndexation;
+        const adjustedVenueRemainder = venueRemainder + indexationCapped;
 
         // 2. Fixed Expenses & Advances
         const baseFixed = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.amount), 0);
@@ -342,12 +406,13 @@ export default function WeddingSimulator() {
 
         return {
             venueCost, venueAdvance1, venueAdvance2, venueAdvance,
+            venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
             guestsIncome, totalParentsGift, litalParentsGift, totalIncome, netBalance,
             totalAdvancesPaid, remainingToPay, costPerGuest, breakEvenAvgGift, incomeProgress,
             scenarios, expenseCategories,
         };
-    }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent]);
+    }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent, cpiData]);
 
     // Savings Calculations
     const monthsLeft = Math.max(1, Math.ceil(daysLeft / 30));
@@ -801,6 +866,62 @@ export default function WeddingSimulator() {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* CPI Indexation Section */}
+                                <div className={`border p-5 rounded-2xl ${cpiData.changePercent > 0 ? 'bg-rose-50/50 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">הצמדה למדד המחירים לצרכן</p>
+                                        {cpiData.loading ? (
+                                            <RefreshCw size={14} className="text-slate-400 animate-spin" />
+                                        ) : (
+                                            <span className="text-[10px] font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">עדכון: {cpiData.currentMonth}</span>
+                                        )}
+                                    </div>
+
+                                    {cpiData.loading ? (
+                                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                                            <RefreshCw size={14} className="animate-spin" />
+                                            <span>טוען נתוני מדד...</span>
+                                        </div>
+                                    ) : cpiData.error ? (
+                                        <p className="text-sm text-rose-500 font-medium">שגיאה: {cpiData.error}</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between text-sm items-center">
+                                                <span className="text-slate-600 font-medium">מדד בסיס (ינואר 2026):</span>
+                                                <span className="font-bold text-slate-700">{cpiData.baseCpi.toFixed(1)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm items-center">
+                                                <span className="text-slate-600 font-medium">מדד נוכחי ({cpiData.currentMonth}):</span>
+                                                <span className="font-bold text-slate-700">{cpiData.currentCpi.toFixed(1)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm items-center border-t border-slate-200/70 pt-3">
+                                                <span className="text-slate-600 font-medium">שינוי במדד:</span>
+                                                <span className={`font-bold flex items-center gap-1 ${cpiData.changePercent > 0 ? 'text-rose-600' : cpiData.changePercent < 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                    {cpiData.changePercent > 0 ? <ArrowUpRight size={14} /> : cpiData.changePercent < 0 ? <ArrowDownRight size={14} /> : null}
+                                                    {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
+                                                </span>
+                                            </div>
+                                            {calculations.indexationCapped !== 0 && (
+                                                <>
+                                                    <div className="flex justify-between text-sm items-center">
+                                                        <span className="text-slate-600 font-medium">סכום הצמדה ({Math.abs(cpiData.changePercent) > 1 ? 'מופחת 50%' : 'מלא'}):</span>
+                                                        <span className={`font-bold ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                            {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
+                                                        </span>
+                                                    </div>
+                                                    {Math.abs(cpiData.changePercent) > 1 && (
+                                                        <p className="text-[10px] text-slate-400 font-medium">* לפי סעיף 3.4 בהסכם, הפרשי ההצמדה מופחתים ב-50% כי עלו על 1%</p>
+                                                    )}
+                                                </>
+                                            )}
+                                            <div className={`flex justify-between items-center text-sm pt-3 border-t ${cpiData.changePercent > 0 ? 'border-rose-200' : cpiData.changePercent < 0 ? 'border-emerald-200' : 'border-slate-200'}`}>
+                                                <span className="font-semibold text-slate-700">יתרה 50% מותאמת:</span>
+                                                <span className="font-bold text-lg text-[#FF4D7F]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="bg-white border border-slate-200 p-5 rounded-2xl mt-auto">
