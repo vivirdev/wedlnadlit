@@ -129,6 +129,21 @@ export default function WeddingSimulator() {
     const weddingDate = new Date('2026-06-23');
     const daysLeft = Math.ceil((weddingDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
+    const getCategoryTargetDate = (category: string) => {
+        const targetDate = new Date(weddingDate);
+        switch (category) {
+            case 'שלב ראשון': targetDate.setDate(targetDate.getDate() - 360); break;
+            case 'בחירת ספקים': targetDate.setDate(targetDate.getDate() - 270); break;
+            case 'בחירת ספקים שלב 2': targetDate.setDate(targetDate.getDate() - 180); break;
+            case 'שלושה חודשים לפני החתונה': targetDate.setDate(targetDate.getDate() - 90); break;
+            case 'חודש לפני החתונה': targetDate.setDate(targetDate.getDate() - 30); break;
+            case 'שבועיים לפני': targetDate.setDate(targetDate.getDate() - 14); break;
+            case 'שבוע לפני': targetDate.setDate(targetDate.getDate() - 7); break;
+            default: return null;
+        }
+        return `${targetDate.getDate().toString().padStart(2, '0')}/${(targetDate.getMonth() + 1).toString().padStart(2, '0')}/${targetDate.getFullYear()}`;
+    };
+
     // State for dynamic inputs (now with RSVP logic)
     const [invitedGuests, setInvitedGuests] = useState(300);
     const [noShowPercent, setNoShowPercent] = useState(15);
@@ -423,35 +438,42 @@ export default function WeddingSimulator() {
 
     // Checklist calculations
     const smartChecklistItems = useMemo(() => {
-        return checklistItems.map(item => {
+        const matchedExpenseIds = new Set<number>();
+
+        const mappedItems = checklistItems.map(item => {
             let isDone = item.done;
             let isLate = false;
+            let originalExpenseId: number | undefined = undefined;
 
             // 1. Auto-Done based on expenses
             const nameLower = item.text.toLowerCase();
-            const hasMatchedExpense = fixedExpenses.some(exp => {
-                if (exp.paid || Number(exp.advance) > 0) {
-                    const expLower = exp.name.toLowerCase();
-                    if (nameLower.includes('אולם') && expLower.includes('אולם')) return true;
-                    if (nameLower.includes('צלמ') && expLower.includes('צלמ')) return true;
-                    if (nameLower.includes('דיג') && expLower.includes('דיג')) return true;
-                    if (nameLower.includes('קייטרינג') && expLower.includes('קייטרינג')) return true;
-                    if (nameLower.includes('מגנטים') && expLower.includes('מגנט')) return true;
-                    if (nameLower.includes('שמל') && expLower.includes('שמל')) return true;
-                    if (nameLower.includes('איפור') && expLower.includes('איפור')) return true;
-                    if (nameLower.includes('שיער') && expLower.includes('שיער')) return true;
-                    if (nameLower.includes('אלכוהול') && expLower.includes('אלכוהול')) return true;
-                    if (nameLower.includes('הזמנות') && expLower.includes('הזמנות')) return true;
-                    if (nameLower.includes('טבעו') && expLower.includes('טבעו')) return true;
-                    if (nameLower.includes('חליפ') && (expLower.includes('חליפ') || expLower.includes('חתן'))) return true;
-                    if (nameLower.includes('עיצוב') && expLower.includes('עיצוב')) return true;
-                    if (nameLower.includes('אקו"ם') && (expLower.includes('אקום') || expLower.includes('אקו"ם'))) return true;
-                }
-                return false;
+            const matchedExpense = fixedExpenses.find(exp => {
+                const expLower = exp.name.toLowerCase();
+                return (
+                    (nameLower.includes('אולם') && expLower.includes('אולם')) ||
+                    (nameLower.includes('צלמ') && expLower.includes('צלמ')) ||
+                    (nameLower.includes('דיג') && expLower.includes('דיג')) ||
+                    (nameLower.includes('קייטרינג') && expLower.includes('קייטרינג')) ||
+                    (nameLower.includes('מגנטים') && expLower.includes('מגנט')) ||
+                    (nameLower.includes('שמל') && expLower.includes('שמל')) ||
+                    (nameLower.includes('איפור') && expLower.includes('איפור')) ||
+                    (nameLower.includes('שיער') && expLower.includes('שיער')) ||
+                    (nameLower.includes('אלכוהול') && expLower.includes('אלכוהול')) ||
+                    (nameLower.includes('הזמנות') && expLower.includes('הזמנות')) ||
+                    (nameLower.includes('טבעו') && (expLower.includes('טבעו') || expLower.includes('טבעת'))) ||
+                    (nameLower.includes('חליפ') && (expLower.includes('חליפ') || expLower.includes('חתן'))) ||
+                    (nameLower.includes('עיצוב') && (expLower.includes('עיצוב') || expLower.includes('פרחים'))) ||
+                    (nameLower.includes('אקו"ם') && (expLower.includes('אקום') || expLower.includes('אקו"ם'))) ||
+                    (nameLower.includes('רב') && (expLower.includes('רב') || expLower.includes('חופה')))
+                );
             });
 
-            if (hasMatchedExpense) {
-                isDone = true;
+            if (matchedExpense) {
+                matchedExpenseIds.add(matchedExpense.id);
+                originalExpenseId = matchedExpense.id;
+                if (matchedExpense.paid || Number(matchedExpense.advance) > 0) {
+                    isDone = true;
+                }
             }
 
             // 2. Late deadline logic
@@ -466,8 +488,27 @@ export default function WeddingSimulator() {
                 if (cat === 'שבוע לפני' && daysLeft <= 7) isLate = true;
             }
 
-            return { ...item, isDone, isLate };
+            return { ...item, isDone, isLate, isVirtual: false, originalExpenseId, isSyncedOutward: !!matchedExpense };
         });
+
+        const virtualItems = fixedExpenses
+            .filter(exp => !matchedExpenseIds.has(exp.id))
+            .map(exp => ({
+                id: -exp.id, // Ensure unique negative ID to prevent index collision manually
+                text: `סגירת ספק: ${exp.name}`,
+                category: 'ספקים נוספים',
+                done: false,
+                isDone: exp.paid || Number(exp.advance) > 0,
+                isLate: false,
+                isVirtual: true,
+                originalExpenseId: exp.id,
+                isSyncedOutward: true
+            }));
+
+        const combined = [...mappedItems, ...virtualItems];
+        // Sort items so 'ספקים נוספים' is always at the end
+        const order = ['שלב ראשון', 'בחירת ספקים', 'בחירת ספקים שלב 2', 'שלושה חודשים לפני החתונה', 'חודש לפני החתונה', 'שבועיים לפני', 'שבוע לפני', 'ספקים נוספים'];
+        return combined.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
     }, [checklistItems, fixedExpenses, daysLeft]);
 
     const checklistDone = smartChecklistItems.filter(i => i.isDone).length;
@@ -599,10 +640,19 @@ export default function WeddingSimulator() {
 
     const toggleChecklistItem = async (id: number) => {
         if (!configId) return;
+
+        const smartItem = smartChecklistItems.find(i => i.id === id);
+        if (smartItem?.isVirtual && smartItem.originalExpenseId) {
+            // Virtual item: toggle the paid status on the actual expense
+            await toggleExpensePaid(smartItem.originalExpenseId);
+            return;
+        }
+
         setChecklistItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i));
         const item = checklistItems.find(i => i.id === id);
         if (item) {
             await supabase.from('checklist').update({ done: !item.done }).eq('id', id);
+            // If it's a real item but mapped to an expense we don't auto-update the expense paid state because it might represent "advance paid", not full paid.
             await loadData(configId);
         }
     };
@@ -1463,9 +1513,16 @@ export default function WeddingSimulator() {
                                 <div className="space-y-6">
                                     {checklistCategories.map(category => (
                                         <div key={category}>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Clock size={14} className="text-slate-400" strokeWidth={1.5} />
-                                                <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">{category}</p>
+                                            <div className="flex justify-between items-center mb-3 text-slate-500">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock size={14} strokeWidth={1.5} />
+                                                    <p className="text-xs font-medium tracking-widest">{category}</p>
+                                                </div>
+                                                {getCategoryTargetDate(category) && (
+                                                    <p className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg tracking-wider">
+                                                        עד ל-{getCategoryTargetDate(category)}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="space-y-3">
                                                 {smartChecklistItems.filter(item => item.category === category).map(item => (
@@ -1479,19 +1536,28 @@ export default function WeddingSimulator() {
                                                             <Circle size={22} className={`flex-shrink-0 mt-0.5 transition-colors ${item.isLate ? 'text-rose-400 group-hover:text-rose-600' : 'text-slate-300 group-hover:text-[#FF4D7F]'}`} strokeWidth={1.5} />
                                                         }
                                                         <div className="flex-1 flex flex-col">
-                                                            <span className={`font-medium ${item.isDone ? 'text-slate-400 line-through' :
-                                                                item.isLate ? 'text-rose-900' :
-                                                                    'text-[#333333]'
-                                                                }`}>{item.text}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`font-medium ${item.isDone ? 'text-slate-400 line-through' :
+                                                                    item.isLate ? 'text-rose-900' :
+                                                                        'text-[#333333]'
+                                                                    }`}>{item.text}</span>
+                                                                {item.isSyncedOutward && (
+                                                                    <span className="text-[10px] text-[#FF4D7F] bg-[#FFE5ED] px-1.5 py-0.5 rounded-[5px] font-semibold flex items-center gap-1.5 border border-[#FFDEDE]">
+                                                                        <RefreshCw size={10} className="mt-[-1px]" /> מקושר לספק
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             {item.isLate && !item.isDone && (
                                                                 <span className="text-[10px] font-semibold tracking-wider text-rose-500 uppercase mt-0.5 animate-pulse">
                                                                     ⚠ באיחור!
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <button onClick={(e) => { e.stopPropagation(); removeChecklistItem(item.id); }} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Trash2 size={14} strokeWidth={1.5} />
-                                                        </button>
+                                                        {!item.isVirtual && (
+                                                            <button onClick={(e) => { e.stopPropagation(); removeChecklistItem(item.id); }} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Trash2 size={14} strokeWidth={1.5} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
