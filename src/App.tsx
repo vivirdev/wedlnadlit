@@ -420,13 +420,15 @@ export default function WeddingSimulator() {
         const otherAmount = baseFixed - categorizedTotal + venueCost > 0 ? baseFixed - (categorizedTotal - venueCost) : 0;
         if (otherAmount > 0) expenseCategories.push({ name: 'אחר', amount: otherAmount, color: '#94a3b8' });
 
+        const remainingFixedPayments = baseFixed - totalFixedAdvances;
+
         return {
             venueCost, venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
             guestsIncome, totalParentsGift, litalParentsGift, totalIncome, netBalance,
             totalAdvancesPaid, remainingToPay, costPerGuest, breakEvenAvgGift, incomeProgress,
-            scenarios, expenseCategories,
+            scenarios, expenseCategories, totalFixedAdvances, remainingFixedPayments,
         };
     }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent, cpiData]);
 
@@ -800,6 +802,13 @@ export default function WeddingSimulator() {
                     >
                         <Sparkles size={18} strokeWidth={1.5} />
                         <span>ניהול חכם</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('cashflow')}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'cashflow' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                        <Wallet size={18} strokeWidth={1.5} />
+                        <span>תזרים שלנו</span>
                     </button>
                 </motion.div>
 
@@ -1578,6 +1587,294 @@ export default function WeddingSimulator() {
                                     <button onClick={addChecklistItem} className="px-5 py-3 bg-[#FF4D7F] hover:bg-[#e63e6d] active:scale-95 text-white rounded-xl font-medium transition-all shadow-md flex items-center gap-2">
                                         <Plus size={18} strokeWidth={1.5} /> הוסף
                                     </button>
+                                </div>
+                            </div>
+
+                        </motion.div>
+                    )}
+                    {/* TAB CONTENT: CASH FLOW */}
+                    {activeTab === 'cashflow' && (
+                        <motion.div
+                            key="cashflow"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="space-y-6"
+                        >
+                            {/* Hero: 3-phase flow */}
+                            <div className="bg-gradient-to-br from-slate-900 via-[#1a0a10] to-slate-900 rounded-[2rem] p-8 text-white relative overflow-hidden border border-white/5">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF4D7F]/10 blur-[80px] rounded-full pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 blur-[60px] rounded-full pointer-events-none"></div>
+                                <div className="relative z-10">
+                                    <p className="text-xs font-bold text-[#FF4D7F] uppercase tracking-widest mb-2">תזרים מזומנים אישי</p>
+                                    <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">המסע הפיננסי שלכם</h2>
+                                    <p className="text-white/50 text-sm mb-8">מה יצא, מה חוזר, ומה נשאר בסוף</p>
+
+                                    <div className="grid grid-cols-3 gap-3 relative">
+                                        {/* Phase 1 */}
+                                        <div className="bg-rose-950/60 border border-rose-700/30 rounded-2xl p-4 backdrop-blur-sm">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="w-6 h-6 rounded-full bg-rose-500/30 flex items-center justify-center text-xs font-bold text-rose-300">1</div>
+                                                <p className="text-xs font-semibold text-rose-300 uppercase tracking-wider">לפני החתונה</p>
+                                            </div>
+                                            <p className="text-[10px] text-rose-400/70 mb-1">יצא מהכיס שלכם</p>
+                                            <p className="text-xl font-bold text-white">-{formatMoney(calculations.totalAdvancesPaid)}</p>
+                                            <p className="text-[10px] text-rose-400/60 mt-1">מקדמות לכל הספקים</p>
+                                        </div>
+
+                                        {/* Arrow 1 */}
+                                        <div className="absolute top-1/2 -translate-y-1/2 right-[66.5%] z-10 hidden md:flex items-center justify-center w-4">
+                                            <ArrowDownRight size={16} className="text-white/20 rotate-[-90deg]" />
+                                        </div>
+
+                                        {/* Phase 2 */}
+                                        <div className="bg-amber-950/60 border border-amber-700/30 rounded-2xl p-4 backdrop-blur-sm">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="w-6 h-6 rounded-full bg-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-300">2</div>
+                                                <p className="text-xs font-semibold text-amber-300 uppercase tracking-wider">יום החתונה</p>
+                                            </div>
+                                            <p className="text-[10px] text-amber-400/70 mb-1">מעטפות מאורחים</p>
+                                            <p className="text-xl font-bold text-white">+{formatMoney(calculations.guestsIncome)}</p>
+                                            <p className="text-[10px] text-amber-400/60 mt-1">{guests} אורחים × {formatMoney(avgGift)}</p>
+                                        </div>
+
+                                        {/* Phase 3 */}
+                                        <div className={`${calculations.netBalance >= 0 ? 'bg-emerald-950/60 border-emerald-700/30' : 'bg-rose-950/60 border-rose-700/30'} border rounded-2xl p-4 backdrop-blur-sm`}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className={`w-6 h-6 rounded-full ${calculations.netBalance >= 0 ? 'bg-emerald-500/30' : 'bg-rose-500/30'} flex items-center justify-center text-xs font-bold ${calculations.netBalance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>3</div>
+                                                <p className={`text-xs font-semibold uppercase tracking-wider ${calculations.netBalance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>תוצאה סופית</p>
+                                            </div>
+                                            <p className={`text-[10px] mb-1 ${calculations.netBalance >= 0 ? 'text-emerald-400/70' : 'text-rose-400/70'}`}>נשאר לכם</p>
+                                            <p className="text-xl font-bold text-white">{calculations.netBalance > 0 ? '+' : ''}{formatMoney(calculations.netBalance)}</p>
+                                            <p className={`text-[10px] mt-1 ${calculations.netBalance >= 0 ? 'text-emerald-400/60' : 'text-rose-400/60'}`}>{calculations.netBalance >= 0 ? 'רווח נקי' : 'חסר במימון'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Grid: outflows + recovery */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                {/* What went OUT */}
+                                <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-rose-100 text-rose-500 p-2.5 rounded-2xl">
+                                            <ArrowDownRight size={20} strokeWidth={1.5} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">שלב 1</p>
+                                            <h3 className="font-bold text-[#1F1A1A] text-lg">מה שיצא מהכיס שלכם</h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Venue advances */}
+                                    <div className="bg-[#FFF5F8] border border-[#FFDEDE] rounded-2xl p-5 mb-4">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <p className="text-sm font-bold text-[#FF4D7F]">🏛️ מקדמות אולם</p>
+                                            <span className="text-xs bg-[#FFE5ED] text-[#FF4D7F] px-2.5 py-1 rounded-full font-semibold">יוחזרו ע"י ההורים</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">מקדמה 1 (בחתימה)</span>
+                                                <span className="font-semibold text-[#333333]">{formatMoney(calculations.venueAdvance1)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">מקדמה 2 (חודש לפני)</span>
+                                                <span className="font-semibold text-[#333333]">{formatMoney(calculations.venueAdvance2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm border-t border-[#FFDEDE]/60 pt-2">
+                                                <span className="font-semibold text-[#FF4D7F]">סה"כ מקדמות אולם:</span>
+                                                <span className="font-bold text-[#FF4D7F]">{formatMoney(calculations.venueAdvance)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Vendor advances */}
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-4">
+                                        <p className="text-sm font-bold text-slate-700 mb-3">📋 מקדמות לספקים אחרים</p>
+                                        {fixedExpenses.filter(e => Number(e.advance) > 0).length === 0 ? (
+                                            <p className="text-sm text-slate-400 italic">אין מקדמות ספקים עדיין</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {fixedExpenses.filter(e => Number(e.advance) > 0).map(e => (
+                                                    <div key={e.id} className="flex justify-between text-sm">
+                                                        <span className="text-slate-600 truncate max-w-[60%]">{getExpenseEmoji(e.name)} {e.name}</span>
+                                                        <span className="font-semibold text-[#333333]">{formatMoney(Number(e.advance))}</span>
+                                                    </div>
+                                                ))}
+                                                <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
+                                                    <span className="font-semibold text-slate-700">סה"כ מקדמות ספקים:</span>
+                                                    <span className="font-bold text-slate-800">{formatMoney(calculations.totalFixedAdvances)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Total out */}
+                                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex justify-between items-center">
+                                        <span className="font-bold text-rose-800">סה"כ יצא מהכיס שלכם</span>
+                                        <span className="text-2xl font-extrabold text-rose-600">-{formatMoney(calculations.totalAdvancesPaid)}</span>
+                                    </div>
+                                </div>
+
+                                {/* How you get it back */}
+                                <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-2xl">
+                                            <ArrowUpRight size={20} strokeWidth={1.5} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">תוכנית ההחזר</p>
+                                            <h3 className="font-bold text-[#1F1A1A] text-lg">איך מחזירים את הכסף</h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Parents cover venue */}
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-4">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <p className="text-sm font-bold text-emerald-700">👨‍👩‍👧 ההורים מכסים את האולם</p>
+                                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold">מכסה מקדמות + יתרה</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">משפחת נדב</span>
+                                                <span className="font-semibold text-emerald-700">{formatMoney(nadavMomGift)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">משפחת ליטל</span>
+                                                <span className="font-semibold text-emerald-700">{formatMoney(calculations.litalParentsGift)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm border-t border-emerald-200 pt-2">
+                                                <span className="font-semibold text-emerald-800">= כיסוי כל עלות האולם:</span>
+                                                <span className="font-bold text-emerald-700">{formatMoney(calculations.venueCost)}</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-600/80 mt-3 bg-emerald-100/50 rounded-xl p-2.5">
+                                            ✓ כל הכסף שהוצאתם על מקדמות האולם ({formatMoney(calculations.venueAdvance)}) חוזר אליכם דרך ההורים, בנוסף לתשלום הסופי של האולם.
+                                        </p>
+                                    </div>
+
+                                    {/* Envelopes cover vendors */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-4">
+                                        <p className="text-sm font-bold text-blue-700 mb-3">💌 המעטפות מכסות את שאר הספקים</p>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">מעטפות צפויות ({guests} אורחים)</span>
+                                                <span className="font-semibold text-blue-700">+{formatMoney(calculations.guestsIncome)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">יתרה לספקים (ביום החתונה)</span>
+                                                <span className="font-semibold text-slate-600">-{formatMoney(calculations.remainingFixedPayments)}</span>
+                                            </div>
+                                            <div className={`flex justify-between text-sm border-t border-blue-200 pt-2 ${calculations.guestsIncome - calculations.remainingFixedPayments >= 0 ? '' : 'text-rose-600'}`}>
+                                                <span className="font-semibold">נשאר אחרי תשלום ספקים:</span>
+                                                <span className="font-bold">{calculations.guestsIncome - calculations.remainingFixedPayments >= 0 ? '+' : ''}{formatMoney(calculations.guestsIncome - calculations.remainingFixedPayments)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Safety buffer note */}
+                                    {useSafetyBuffer && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-700 font-medium">
+                                            ⚠ כולל רזרבה של 10% לבלת"מים ({formatMoney(calculations.safetyBufferAmount)}) שאולי לא תשתמשו בה
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Wedding day equation */}
+                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="mb-6">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">סימולציה</p>
+                                    <h3 className="text-xl font-bold text-[#1F1A1A]">מה קורה ביום החתונה</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                    {/* Outflows on wedding day */}
+                                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5">
+                                        <p className="text-sm font-bold text-rose-700 mb-4 flex items-center gap-2">
+                                            <ArrowDownRight size={16} strokeWidth={2} /> יוצא מהכיס ביום החתונה
+                                        </p>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">יתרות לספקים</span>
+                                                <span className="font-semibold text-rose-700">-{formatMoney(calculations.remainingFixedPayments)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">יתרת אולם (+ הצמדה)</span>
+                                                <span className="font-semibold text-rose-700">-{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm border-t border-rose-200 pt-2">
+                                                <span className="font-semibold text-rose-800">סה"כ לשלם:</span>
+                                                <span className="font-bold text-rose-700 text-lg">-{formatMoney(calculations.remainingToPay)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Inflows on wedding day */}
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                        <p className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                                            <ArrowUpRight size={16} strokeWidth={2} /> נכנס ביום החתונה
+                                        </p>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">מעטפות מאורחים</span>
+                                                <span className="font-semibold text-emerald-700">+{formatMoney(calculations.guestsIncome)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">תרומת הורים (לאולם)</span>
+                                                <span className="font-semibold text-emerald-700">+{formatMoney(calculations.totalParentsGift)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm border-t border-emerald-200 pt-2">
+                                                <span className="font-semibold text-emerald-800">סה"כ נכנס:</span>
+                                                <span className="font-bold text-emerald-700 text-lg">+{formatMoney(calculations.totalIncome)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Day-of coverage check */}
+                                <div className={`rounded-2xl p-5 border ${calculations.guestsIncome >= calculations.remainingFixedPayments ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-[#1F1A1A]">האם המעטפות מכסות את יתרת הספקים?</p>
+                                            <p className="text-sm text-slate-500 mt-1">
+                                                {calculations.guestsIncome >= calculations.remainingFixedPayments
+                                                    ? `כן! יש לכם עודף של ${formatMoney(calculations.guestsIncome - calculations.remainingFixedPayments)} אחרי תשלום כל הספקים`
+                                                    : `חסר ${formatMoney(calculations.remainingFixedPayments - calculations.guestsIncome)} — תצטרכו לכסות מהחיסכון`
+                                                }
+                                            </p>
+                                        </div>
+                                        <div className={`text-3xl font-extrabold ${calculations.guestsIncome >= calculations.remainingFixedPayments ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                            {calculations.guestsIncome >= calculations.remainingFixedPayments ? '✓' : '!'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Bottom line: N&L's personal view */}
+                            <div className="bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] rounded-[2rem] p-8 text-white shadow-[0_20px_50px_rgba(255,77,127,0.25)] relative overflow-hidden">
+                                <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                <div className="relative z-10">
+                                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-2">השורה התחתונה שלכם</p>
+                                    <h3 className="text-2xl font-bold mb-6">ההורים מכסים את האולם — אתם מנהלים את השאר</h3>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20">
+                                            <p className="text-xs text-white/60 uppercase tracking-widest mb-2">הוצאות שלכם בפועל</p>
+                                            <p className="text-3xl font-extrabold">{formatMoney(calculations.totalFixed)}</p>
+                                            <p className="text-xs text-white/50 mt-1">ספקים בלבד (ללא אולם)</p>
+                                        </div>
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20">
+                                            <p className="text-xs text-white/60 uppercase tracking-widest mb-2">הכנסה מהמעטפות</p>
+                                            <p className="text-3xl font-extrabold">+{formatMoney(calculations.guestsIncome)}</p>
+                                            <p className="text-xs text-white/50 mt-1">{guests} אורחים בממוצע {formatMoney(avgGift)}</p>
+                                        </div>
+                                        <div className={`rounded-2xl p-5 border ${calculations.netBalance >= 0 ? 'bg-white/20 border-white/30' : 'bg-black/20 border-white/10'}`}>
+                                            <p className="text-xs text-white/60 uppercase tracking-widest mb-2">נטו לכיסכם</p>
+                                            <p className="text-3xl font-extrabold">{calculations.netBalance > 0 ? '+' : ''}{formatMoney(calculations.netBalance)}</p>
+                                            <p className="text-xs text-white/50 mt-1">{calculations.netBalance >= 0 ? 'רווח אחרי הכל' : 'גרעון לכסות'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
