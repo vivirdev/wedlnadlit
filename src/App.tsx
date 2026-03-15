@@ -363,6 +363,8 @@ export default function WeddingSimulator() {
             ? rawIndexation * 0.5
             : rawIndexation;
         const adjustedVenueRemainder = venueRemainder + indexationCapped;
+        // CPI-adjusted total venue cost — this is what parents actually pay
+        const adjustedVenueCost = venueCost + indexationCapped;
 
         // 2. Fixed Expenses & Advances
         const baseFixed = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.amount), 0);
@@ -373,11 +375,11 @@ export default function WeddingSimulator() {
         const totalFixed = baseFixed + safetyBufferAmount;
 
         // 3. Total Expenses (needed for Lital parents' gift calculation)
-        const totalExpenses = totalFixed + venueCost;
+        const totalExpenses = totalFixed + adjustedVenueCost;
 
         // 4. Total Parents Gifts
-        // Lital's parents pay the exact remainder of the VENUE cost minus Nadav's mom.
-        const litalParentsGift = Math.max(0, venueCost - nadavMomGift);
+        // Lital's parents pay the exact remainder of the CPI-adjusted VENUE cost minus Nadav's mom.
+        const litalParentsGift = Math.max(0, adjustedVenueCost - nadavMomGift);
         const totalParentsGift = nadavMomGift + litalParentsGift;
 
         // 5. Totals & Balances
@@ -410,7 +412,7 @@ export default function WeddingSimulator() {
 
         // 9. Expense Breakdown by category
         const expenseCategories = [
-            { name: 'אולם', amount: venueCost, color: '#6366f1' },
+            { name: 'אולם', amount: adjustedVenueCost, color: '#6366f1' },
             { name: 'צילום', amount: fixedExpenses.filter(e => ['צלמים', 'צלם מגנטים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#8b5cf6' },
             { name: 'מוזיקה', amount: fixedExpenses.filter(e => ['דיג', 'רקדנים', 'סקסופוניסט', 'כנר'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#ec4899' },
             { name: 'לבוש ויופי', amount: fixedExpenses.filter(e => ['שמלות', 'תכשיטים', 'איפור', 'חתן', 'טבעות', 'נעליים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#f59e0b' },
@@ -423,7 +425,7 @@ export default function WeddingSimulator() {
         const remainingFixedPayments = baseFixed - totalFixedAdvances;
 
         return {
-            venueCost, venueAdvance1, venueAdvance2, venueAdvance,
+            venueCost, adjustedVenueCost, venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
             guestsIncome, totalParentsGift, litalParentsGift, totalIncome, netBalance,
@@ -974,7 +976,7 @@ export default function WeddingSimulator() {
                                         <p className="text-sm font-medium text-slate-600 mb-4">{calculations.costBreakdown}</p>
                                         <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-4">
                                             <span className="font-semibold text-slate-500">סה"כ לתשלום:</span>
-                                            <span className="font-bold text-[#FF4D7F] text-xl">{formatMoney(calculations.venueCost)}</span>
+                                            <span className="font-bold text-[#FF4D7F] text-xl">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
                                         </div>
 
                                         {/* Venue Payment Schedule Breakdown */}
@@ -1626,11 +1628,11 @@ export default function WeddingSimulator() {
                                     </div>
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="font-bold text-slate-700">סה"כ</span>
-                                        <span className="text-xl font-extrabold text-emerald-600">{formatMoney(calculations.venueCost)}</span>
+                                        <span className="text-xl font-extrabold text-emerald-600">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
                                     </div>
                                 </div>
                                 <div className="mt-5 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-700 font-medium">
-                                    משפחת נדב {formatMoney(nadavMomGift)} + משפחת ליטל {formatMoney(calculations.litalParentsGift)}
+                                    משפחת נדב {formatMoney(nadavMomGift)} + משפחת ליטל {formatMoney(Math.round(calculations.litalParentsGift))}
                                 </div>
                             </div>
 
