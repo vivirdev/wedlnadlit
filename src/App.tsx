@@ -409,10 +409,11 @@ export default function WeddingSimulator() {
         const safetyBufferAmount = useSafetyBuffer ? baseFixed * 0.10 : 0;
         const totalFixed = baseFixed + safetyBufferAmount;
 
-        // 3. Total Expenses
-        // Parents commit to the venue base contract (137,250). Indexation + extra-guest
-        // surcharge sit outside the couple's budget per agreement.
-        const totalExpenses = totalFixed + venueBaseContractValue;
+        // 3. Total Expenses — couple pays the full venue cost (CPI-adjusted).
+        // Parents cap their contribution at the base contract (137,250); any
+        // overage from indexation or extra meals falls on the couple.
+        const totalExpenses = totalFixed + adjustedVenueCost;
+        const venueOverage = Math.max(0, adjustedVenueCost - venueBaseContractValue);
 
         // 4. Total Parents Gifts — fixed at base contract value
         const litalParentsGift = Math.max(0, venueBaseContractValue - nadavMomGift);
@@ -449,7 +450,7 @@ export default function WeddingSimulator() {
 
         // 9. Expense Breakdown by category
         const expenseCategories = [
-            { name: 'אולם', amount: venueBaseContractValue, color: '#6366f1' },
+            { name: 'אולם', amount: adjustedVenueCost, color: '#6366f1' },
             { name: 'צילום', amount: fixedExpenses.filter(e => ['צלמים', 'צלם מגנטים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#8b5cf6' },
             { name: 'מוזיקה', amount: fixedExpenses.filter(e => ['דיג', 'רקדנים', 'סקסופוניסט', 'כנר'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#ec4899' },
             { name: 'לבוש ויופי', amount: fixedExpenses.filter(e => ['שמלות', 'תכשיטים', 'איפור', 'חתן', 'טבעות', 'נעליים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#f59e0b' },
@@ -462,7 +463,7 @@ export default function WeddingSimulator() {
         const remainingFixedPayments = baseFixed - totalFixedAdvances;
 
         return {
-            venueCost, adjustedVenueCost, venueBaseContractValue,
+            venueCost, adjustedVenueCost, venueBaseContractValue, venueOverage,
             venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
@@ -1291,10 +1292,22 @@ export default function WeddingSimulator() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-center items-center text-center">
-                                        <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">יתרה מאוחרת (ביום האירוע)</p>
-                                        <span className="text-4xl font-bold text-[#FF4D7F]">{formatMoney(calculations.remainingToPay)}</span>
-                                        <span className="text-xs text-slate-500 font-medium mt-2">מהמעטפות / כיס משותף</span>
+                                    <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-center text-center">
+                                        <p className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">יתרה מאוחרת אולם (ביום האירוע)</p>
+                                        <div className="space-y-3">
+                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+                                                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-1">ההורים</p>
+                                                <span className="text-2xl font-extrabold text-emerald-700">{formatMoney(Math.round(calculations.parentsFinalPayment))}</span>
+                                                <p className="text-[10px] text-emerald-600/80 font-medium mt-1">בסיס החוזה (137,250 ₪) פחות מקדמות</p>
+                                            </div>
+                                            {calculations.venueOverage > 0 && (
+                                                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3">
+                                                    <p className="text-[10px] font-bold text-rose-700 uppercase tracking-widest mb-1">עליכם</p>
+                                                    <span className="text-2xl font-extrabold text-rose-600">{formatMoney(Math.round(calculations.venueOverage))}</span>
+                                                    <p className="text-[10px] text-rose-600/80 font-medium mt-1">הצמדה + תוספת מנות מעל הבסיס</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1424,7 +1437,7 @@ export default function WeddingSimulator() {
                                             <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-400"></div>
                                             <div>
                                                 <span className="font-semibold text-slate-700 text-lg">ההורים של ליטל</span>
-                                                <p className="text-xs text-[#FF4D7F] font-medium tracking-wide mt-1">משלימים את בסיס החוזה (137,250 ₪)</p>
+                                                <p className="text-xs text-[#FF4D7F] font-medium tracking-wide mt-1">משלימים את בסיס החוזה (137,250 ₪) — תוספות עליכם</p>
                                             </div>
                                             <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl border border-[#FFDEDE] shadow-sm">
                                                 <span className="w-auto min-w-[4rem] text-xl font-bold text-center text-[#333333]">{calculations.litalParentsGift.toLocaleString()}</span>
@@ -1523,8 +1536,8 @@ export default function WeddingSimulator() {
                                         <div className="mt-4 pt-3 border-t border-emerald-200">
                                             <p className="text-[11px] text-emerald-700 leading-relaxed">
                                                 ✅ ההורים מכסים את הבסיס (137,250 ₪).<br />
-                                                {calculations.adjustedVenueCost > calculations.venueBaseContractValue
-                                                    ? <>תוספת מנות והצמדה — מחוץ לתקציב הזוג.</>
+                                                {calculations.venueOverage > 0
+                                                    ? <>💸 כל מה שמעבר ({formatMoney(Math.round(calculations.venueOverage))}) — עליכם.</>
                                                     : <>אין תוספת מעל הבסיס.</>}
                                             </p>
                                         </div>
@@ -2020,7 +2033,9 @@ export default function WeddingSimulator() {
                                 </div>
                                 <div className="mt-5 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-700 font-medium">
                                     משפחת נדב {formatMoney(nadavMomGift)} + משפחת ליטל {formatMoney(Math.round(calculations.litalParentsGift))}
-                                    <p className="mt-1 text-[10px] text-emerald-600/80 font-normal">הצמדה ותוספת מנות מעל 225 — מחוץ לתקציב שלכם</p>
+                                    {calculations.venueOverage > 0 && (
+                                        <p className="mt-1 text-[10px] text-rose-600/90 font-medium">⚠️ הצמדה ותוספת מנות ({formatMoney(Math.round(calculations.venueOverage))}) — עליכם, לא על ההורים</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -2057,10 +2072,19 @@ export default function WeddingSimulator() {
                                             ))}
                                         </>
                                     )}
+                                    {calculations.venueOverage > 0 && (
+                                        <>
+                                            <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-4 mb-2 pt-2">תוספת אולם (מעל בסיס החוזה)</p>
+                                            <div className="flex justify-between items-center text-sm py-1.5 border-b border-rose-50 bg-rose-50/40 rounded-lg px-2">
+                                                <span className="text-rose-600 truncate max-w-[65%]">🏛️ הצמדה ותוספת מנות</span>
+                                                <span className="font-semibold text-rose-600">{formatMoney(Math.round(calculations.venueOverage))}</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="flex justify-between items-center mt-5 pt-4 border-t border-slate-100">
                                     <span className="font-bold text-slate-700">סה"כ</span>
-                                    <span className="text-xl font-extrabold text-[#FF4D7F]">{formatMoney(calculations.totalFixed)}</span>
+                                    <span className="text-xl font-extrabold text-[#FF4D7F]">{formatMoney(calculations.totalFixed + Math.round(calculations.venueOverage))}</span>
                                 </div>
                             </div>
 
@@ -2084,6 +2108,12 @@ export default function WeddingSimulator() {
                                             <span className="text-white/70">הוצאות ספקים</span>
                                             <span className="font-semibold">-{formatMoney(calculations.totalFixed)}</span>
                                         </div>
+                                        {calculations.venueOverage > 0 && (
+                                            <div className="flex justify-between items-center text-sm py-2 border-b border-white/20">
+                                                <span className="text-white/70">תוספת אולם (מעל בסיס)</span>
+                                                <span className="font-semibold">-{formatMoney(Math.round(calculations.venueOverage))}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="mt-6 bg-white/15 rounded-2xl p-5 text-center border border-white/20">
                                         <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-2">נשאר לכם</p>
