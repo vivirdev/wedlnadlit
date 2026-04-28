@@ -1443,6 +1443,95 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
+                            {/* Venue cost per guest count + meal price — full width */}
+                            <div className="md:col-span-2 bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-indigo-50 p-2.5 rounded-2xl text-indigo-600 border border-indigo-100">
+                                        <Receipt size={24} strokeWidth={1.5} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">עלות האולם לפי החוזה</p>
+                                        <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">חישוב לפי כמות מנות בפועל</h2>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Per-guest breakdown */}
+                                    <div className="bg-[#F8F8F8] rounded-2xl border border-slate-100 p-5 md:col-span-2">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">פירוט מנות</p>
+                                        {guests < 250 ? (
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">{Math.max(guests, 225)} מנות × 610 ₪</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(Math.max(guests, 225) * 610)}</span>
+                                                </div>
+                                                {guests < 225 && (
+                                                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                                                        ⚠️ מינימום החוזה: 225 מנות. {guests} מגיעים בפועל — נשלם על {225 - guests} מנות שלא יאכלו.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">250 מנות ראשונות × 586 ₪</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(250 * 586)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">{guests - 250} מנות נוספות × 555 ₪</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney((guests - 250) * 555)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="border-t border-slate-200 mt-3 pt-3 space-y-1.5 text-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-500">סה"כ לפי המנות:</span>
+                                                <span className="font-semibold text-slate-700">{formatMoney(calculations.venueCost)}</span>
+                                            </div>
+                                            {Math.abs(calculations.indexationCapped) > 1 && (
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-500">הצמדה למדד:</span>
+                                                    <span className={`font-semibold ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                        {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                                                <span className="font-bold text-slate-700">עלות בפועל:</span>
+                                                <span className="text-xl font-extrabold text-indigo-600">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Coverage breakdown */}
+                                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-3">איך זה מתחלק</p>
+                                            <div className="space-y-3 text-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">בסיס החוזה (225 × 610):</span>
+                                                    <span className="font-bold text-emerald-700">{formatMoney(calculations.venueBaseContractValue)}</span>
+                                                </div>
+                                                {calculations.adjustedVenueCost > calculations.venueBaseContractValue && (
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-slate-600">תוספת מעל הבסיס:</span>
+                                                        <span className="font-bold text-rose-600">+{formatMoney(Math.round(calculations.adjustedVenueCost - calculations.venueBaseContractValue))}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pt-3 border-t border-emerald-200">
+                                            <p className="text-[11px] text-emerald-700 leading-relaxed">
+                                                ✅ ההורים מכסים את הבסיס (137,250 ₪).<br />
+                                                {calculations.adjustedVenueCost > calculations.venueBaseContractValue
+                                                    ? <>תוספת מנות והצמדה — מחוץ לתקציב הזוג.</>
+                                                    : <>אין תוספת מעל הבסיס.</>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </motion.div>
                     )}
 
