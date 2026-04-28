@@ -374,13 +374,15 @@ export default function WeddingSimulator() {
         const safetyBufferAmount = useSafetyBuffer ? baseFixed * 0.10 : 0;
         const totalFixed = baseFixed + safetyBufferAmount;
 
-        // 3. Total Expenses (needed for Lital parents' gift calculation)
-        const totalExpenses = totalFixed + adjustedVenueCost;
+        // 3. Total Expenses
+        // Parents commit to the venue base contract (137,250). Indexation + extra-guest
+        // surcharge sit outside the couple's budget per agreement.
+        const totalExpenses = totalFixed + venueBaseContractValue;
 
-        // 4. Total Parents Gifts
-        // Lital's parents pay the exact remainder of the CPI-adjusted VENUE cost minus Nadav's mom.
-        const litalParentsGift = Math.max(0, adjustedVenueCost - nadavMomGift);
+        // 4. Total Parents Gifts — fixed at base contract value
+        const litalParentsGift = Math.max(0, venueBaseContractValue - nadavMomGift);
         const totalParentsGift = nadavMomGift + litalParentsGift;
+        const parentsFinalPayment = Math.max(0, venueBaseContractValue - venueAdvance);
 
         // 5. Totals & Balances
         const guestsIncome = guests * avgGift;
@@ -412,7 +414,7 @@ export default function WeddingSimulator() {
 
         // 9. Expense Breakdown by category
         const expenseCategories = [
-            { name: 'אולם', amount: adjustedVenueCost, color: '#6366f1' },
+            { name: 'אולם', amount: venueBaseContractValue, color: '#6366f1' },
             { name: 'צילום', amount: fixedExpenses.filter(e => ['צלמים', 'צלם מגנטים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#8b5cf6' },
             { name: 'מוזיקה', amount: fixedExpenses.filter(e => ['דיג', 'רקדנים', 'סקסופוניסט', 'כנר'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#ec4899' },
             { name: 'לבוש ויופי', amount: fixedExpenses.filter(e => ['שמלות', 'תכשיטים', 'איפור', 'חתן', 'טבעות', 'נעליים'].some(k => e.name.includes(k))).reduce((s, e) => s + Number(e.amount), 0), color: '#f59e0b' },
@@ -425,10 +427,12 @@ export default function WeddingSimulator() {
         const remainingFixedPayments = baseFixed - totalFixedAdvances;
 
         return {
-            venueCost, adjustedVenueCost, venueAdvance1, venueAdvance2, venueAdvance,
+            venueCost, adjustedVenueCost, venueBaseContractValue,
+            venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
-            guestsIncome, totalParentsGift, litalParentsGift, totalIncome, netBalance,
+            guestsIncome, totalParentsGift, litalParentsGift, parentsFinalPayment,
+            totalIncome, netBalance,
             totalAdvancesPaid, remainingToPay, costPerGuest, breakEvenAvgGift, incomeProgress,
             scenarios, expenseCategories, totalFixedAdvances, remainingFixedPayments,
         };
@@ -1126,7 +1130,7 @@ export default function WeddingSimulator() {
                                             <div className="absolute top-0 right-0 w-1.5 h-full bg-pink-400"></div>
                                             <div>
                                                 <span className="font-semibold text-slate-700 text-lg">ההורים של ליטל</span>
-                                                <p className="text-xs text-[#FF4D7F] font-medium tracking-wide mt-1">משלימים את יתרת עלות האולם</p>
+                                                <p className="text-xs text-[#FF4D7F] font-medium tracking-wide mt-1">משלימים את בסיס החוזה (137,250 ₪)</p>
                                             </div>
                                             <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl border border-[#FFDEDE] shadow-sm">
                                                 <span className="w-auto min-w-[4rem] text-xl font-bold text-center text-[#333333]">{calculations.litalParentsGift.toLocaleString()}</span>
@@ -1624,15 +1628,16 @@ export default function WeddingSimulator() {
                                     </div>
                                     <div className="flex justify-between items-center text-sm py-2 border-b border-slate-100">
                                         <span className="text-slate-500">תשלום סופי — ביום האירוע</span>
-                                        <span className="font-semibold text-[#333333]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
+                                        <span className="font-semibold text-[#333333]">{formatMoney(Math.round(calculations.parentsFinalPayment))}</span>
                                     </div>
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="font-bold text-slate-700">סה"כ</span>
-                                        <span className="text-xl font-extrabold text-emerald-600">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
+                                        <span className="text-xl font-extrabold text-emerald-600">{formatMoney(calculations.totalParentsGift)}</span>
                                     </div>
                                 </div>
                                 <div className="mt-5 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-700 font-medium">
                                     משפחת נדב {formatMoney(nadavMomGift)} + משפחת ליטל {formatMoney(Math.round(calculations.litalParentsGift))}
+                                    <p className="mt-1 text-[10px] text-emerald-600/80 font-normal">הצמדה ותוספת מנות מעל 225 — מחוץ לתקציב שלכם</p>
                                 </div>
                             </div>
 
