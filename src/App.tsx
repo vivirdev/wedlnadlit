@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Building2 } from 'lucide-react';
+import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Building2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
