@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
+import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, LayoutDashboard, Receipt, Sparkles, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -11,7 +11,34 @@ interface Expense {
     paid?: boolean;
     contact_name?: string;
     contact_phone?: string;
+    payment_method?: string;
+    payment_holder?: string;
+    arrival_time?: string;
+    payment_ready?: boolean;
 }
+
+interface RunSheetEvent {
+    id: string;
+    time: string;
+    title: string;
+    responsible: string;
+    notes?: string;
+}
+
+const DEFAULT_RUN_SHEET: RunSheetEvent[] = [
+    { id: 'rs-1', time: '08:00', title: 'תספורת / גילוח לחתן', responsible: 'חתן', notes: '' },
+    { id: 'rs-2', time: '09:30', title: 'איפור ושיער לכלה', responsible: 'כלה', notes: '' },
+    { id: 'rs-3', time: '13:00', title: 'סשן צילומים זוגי', responsible: 'צלם', notes: '' },
+    { id: 'rs-4', time: '15:00', title: 'הגעה לאולם', responsible: 'שניהם', notes: '' },
+    { id: 'rs-5', time: '16:30', title: 'קבלת פנים', responsible: 'אולם', notes: '' },
+    { id: 'rs-6', time: '18:00', title: 'חופה', responsible: 'רב', notes: '' },
+    { id: 'rs-7', time: '19:00', title: 'ארוחה + ריקודים', responsible: 'דיג\'יי', notes: '' },
+    { id: 'rs-8', time: '23:30', title: 'ברכת המזון', responsible: 'רב', notes: '' },
+    { id: 'rs-9', time: '00:30', title: 'סיום ופירוק', responsible: '', notes: '' },
+];
+
+const PAYMENT_METHODS = ['מזומן', "צ'ק", 'העברה', 'אשראי'] as const;
+const PAYMENT_HOLDERS = ['חתן', 'כלה', 'אבא נדב', 'אמא נדב', 'אבא ליטל', 'אמא ליטל', 'אחר'] as const;
 
 interface ChecklistItem {
     id: number;
@@ -178,6 +205,7 @@ export default function WeddingSimulator() {
     const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
     const [newChecklistText, setNewChecklistText] = useState('');
     const [fixedExpenses, setFixedExpenses] = useState<Expense[]>([]);
+    const [runSheetEvents, setRunSheetEvents] = useState<RunSheetEvent[]>([]);
 
     const [newExpenseName, setNewExpenseName] = useState('');
     const [newExpenseAmount, setNewExpenseAmount] = useState('');
@@ -197,6 +225,13 @@ export default function WeddingSimulator() {
                 setMonthlySaving(configRes.data.monthly_saving);
                 setSafetyBuffer(configRes.data.use_safety_buffer);
                 setNadavMomGift(configRes.data.nadav_mom_gift);
+                const remoteEvents = configRes.data.run_sheet_events as RunSheetEvent[] | null;
+                if (remoteEvents && remoteEvents.length > 0) {
+                    setRunSheetEvents(remoteEvents);
+                } else {
+                    setRunSheetEvents(DEFAULT_RUN_SHEET);
+                    await supabase.from('wedding_config').update({ run_sheet_events: DEFAULT_RUN_SHEET }).eq('id', id);
+                }
             }
             if (expensesRes.data) setFixedExpenses(expensesRes.data);
 
@@ -524,6 +559,130 @@ export default function WeddingSimulator() {
     const checklistProgress = checklistTotal > 0 ? (checklistDone / checklistTotal) * 100 : 0;
     const checklistCategories = [...new Set(smartChecklistItems.map(i => i.category))];
 
+    // Smart action queue — surfaces what to do *this week* across the app
+    type SmartAction = {
+        key: string;
+        emoji: string;
+        title: string;
+        reason: string;
+        urgency: 'high' | 'medium' | 'low';
+        kind: 'checklist' | 'vendor-advance' | 'vendor-final' | 'runsheet';
+        checklistId?: number;
+        expenseId?: number;
+        whatsappPhone?: string;
+        whatsappName?: string;
+        topic?: string;
+    };
+
+    const smartActions = useMemo<SmartAction[]>(() => {
+        const actions: SmartAction[] = [];
+
+        // 1. Late checklist items
+        smartChecklistItems
+            .filter(i => i.isLate && !i.isDone)
+            .forEach(item => {
+                actions.push({
+                    key: `chk-${item.id}`,
+                    emoji: getExpenseEmoji(item.text),
+                    title: item.text,
+                    reason: `${item.category} — באיחור`,
+                    urgency: 'high',
+                    kind: 'checklist',
+                    checklistId: item.id,
+                });
+            });
+
+        // 2. Vendors with no advance and wedding is < 75 days away
+        if (daysLeft <= 90) {
+            fixedExpenses
+                .filter(e => Number(e.advance) === 0 && !e.paid && Number(e.amount) > 0)
+                .forEach(exp => {
+                    const phone = exp.contact_phone;
+                    actions.push({
+                        key: `adv-${exp.id}`,
+                        emoji: getExpenseEmoji(exp.name),
+                        title: `מקדמה: ${exp.name}`,
+                        reason: `${Number(exp.amount).toLocaleString('he-IL')} ₪ — מקדמה לא שולמה (${daysLeft} ימים)`,
+                        urgency: daysLeft <= 30 ? 'high' : 'medium',
+                        kind: 'vendor-advance',
+                        expenseId: exp.id,
+                        whatsappPhone: phone,
+                        whatsappName: exp.contact_name,
+                        topic: `תיאום מקדמה ל${exp.name}`,
+                    });
+                });
+        }
+
+        // 3. Vendors fully unpaid with wedding < 21 days — final payment looming
+        if (daysLeft <= 21) {
+            fixedExpenses
+                .filter(e => !e.paid && Number(e.amount) > Number(e.advance || 0))
+                .forEach(exp => {
+                    actions.push({
+                        key: `final-${exp.id}`,
+                        emoji: '💰',
+                        title: `תשלום סופי: ${exp.name}`,
+                        reason: `יתרה ${(Number(exp.amount) - Number(exp.advance || 0)).toLocaleString('he-IL')} ₪ ליום האירוע`,
+                        urgency: 'high',
+                        kind: 'vendor-final',
+                        expenseId: exp.id,
+                        whatsappPhone: exp.contact_phone,
+                        whatsappName: exp.contact_name,
+                        topic: `תיאום תשלום סופי`,
+                    });
+                });
+        }
+
+        // 4. Run sheet readiness reminder
+        if (daysLeft <= 14) {
+            const unreadyVendors = fixedExpenses.filter(e => !e.payment_ready && Number(e.amount) > Number(e.advance || 0));
+            if (unreadyVendors.length > 0) {
+                actions.push({
+                    key: 'runsheet-cash',
+                    emoji: '✉️',
+                    title: `${unreadyVendors.length} מעטפות שלא מוכנות`,
+                    reason: 'הכינו מעטפות מזומן/צ\'קים לכל ספק לפי "יום החתונה"',
+                    urgency: daysLeft <= 7 ? 'high' : 'medium',
+                    kind: 'runsheet',
+                });
+            }
+        }
+
+        const order = { high: 0, medium: 1, low: 2 } as const;
+        return actions.sort((a, b) => order[a.urgency] - order[b.urgency]).slice(0, 8);
+    }, [smartChecklistItems, fixedExpenses, daysLeft]);
+
+    // Day-of-event payment summary
+    const runSheetSummary = useMemo(() => {
+        const vendorsWithFinal = fixedExpenses
+            .filter(e => Number(e.amount) > Number(e.advance || 0))
+            .map(e => ({
+                ...e,
+                remainingAmount: Number(e.amount) - Number(e.advance || 0),
+            }))
+            .sort((a, b) => (a.arrival_time || '99').localeCompare(b.arrival_time || '99'));
+
+        const totalCash = vendorsWithFinal.filter(v => v.payment_method === 'מזומן').reduce((s, v) => s + v.remainingAmount, 0);
+        const totalChecks = vendorsWithFinal.filter(v => v.payment_method === "צ'ק").reduce((s, v) => s + v.remainingAmount, 0);
+        const totalTransfer = vendorsWithFinal.filter(v => v.payment_method === 'העברה').reduce((s, v) => s + v.remainingAmount, 0);
+        const totalRemaining = vendorsWithFinal.reduce((s, v) => s + v.remainingAmount, 0);
+        const readyCount = vendorsWithFinal.filter(v => v.payment_ready).length;
+
+        // Add venue final to the picture (parents pay separately)
+        const venueFinal = calculations.parentsFinalPayment;
+
+        return {
+            vendors: vendorsWithFinal,
+            totalCash,
+            totalChecks,
+            totalTransfer,
+            totalRemaining,
+            readyCount,
+            totalCount: vendorsWithFinal.length,
+            venueFinal,
+        };
+    }, [fixedExpenses, calculations.parentsFinalPayment]);
+
     const [isMigrating, setIsMigrating] = useState(false);
 
     const handleMigrateLocalData = async () => {
@@ -593,19 +752,59 @@ export default function WeddingSimulator() {
         await loadData(configId);
     };
 
-    const updateExpense = async (id: number, field: string, value: string | number) => {
+    const updateExpense = async (id: number, field: string, value: string | number | boolean) => {
         if (!configId) return;
-        const val = field === 'contact_name' || field === 'contact_phone' ? value : Number(value);
+        const stringFields = ['contact_name', 'contact_phone', 'payment_method', 'payment_holder', 'arrival_time'];
+        const booleanFields = ['payment_ready', 'paid'];
+        const val: string | number | boolean =
+            stringFields.includes(field) ? String(value) :
+            booleanFields.includes(field) ? Boolean(value) :
+            Number(value);
         setFixedExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: val } : e));
 
-        // Don't wait for loadData here as it causes focus loss while typing text inputs
         supabase.from('expenses').update({ [field]: val }).eq('id', id).then(() => {
-            // Optional: we can reload data in background if needed, but realtime should catch it
-            // or we rely on the local optimistic update.
-            if (field !== 'contact_name' && field !== 'contact_phone') {
+            if (!stringFields.includes(field)) {
                 loadData(configId);
             }
         });
+    };
+
+    const persistRunSheet = (events: RunSheetEvent[]) => {
+        setRunSheetEvents(events);
+        if (configId) {
+            supabase.from('wedding_config').update({ run_sheet_events: events }).eq('id', configId);
+        }
+    };
+
+    const updateRunSheetEvent = (id: string, field: keyof RunSheetEvent, value: string) => {
+        persistRunSheet(runSheetEvents.map(ev => ev.id === id ? { ...ev, [field]: value } : ev));
+    };
+
+    const addRunSheetEvent = () => {
+        const newEvent: RunSheetEvent = {
+            id: `rs-${Date.now()}`,
+            time: '12:00',
+            title: 'אירוע חדש',
+            responsible: '',
+            notes: '',
+        };
+        persistRunSheet([...runSheetEvents, newEvent]);
+    };
+
+    const removeRunSheetEvent = (id: string) => {
+        persistRunSheet(runSheetEvents.filter(ev => ev.id !== id));
+    };
+
+    const buildWhatsappLink = (phone: string | undefined, message: string) => {
+        if (!phone) return null;
+        const cleaned = phone.replace(/\D/g, '');
+        if (cleaned.length < 9) return null;
+        const intl = cleaned.startsWith('972')
+            ? cleaned
+            : cleaned.startsWith('0')
+                ? '972' + cleaned.slice(1)
+                : '972' + cleaned;
+        return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
     };
 
     const toggleExpensePaid = async (id: number) => {
@@ -816,6 +1015,13 @@ export default function WeddingSimulator() {
                         <Wallet size={18} strokeWidth={1.5} />
                         <span>תזרים שלנו</span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab('runsheet')}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-6 rounded-full font-medium transition-all duration-300 ${activeTab === 'runsheet' ? 'bg-[#FF4D7F] text-white shadow-md shadow-[#FFDEDE]/50' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                        <AlarmClock size={18} strokeWidth={1.5} />
+                        <span>יום החתונה</span>
+                    </button>
                 </motion.div>
 
                 {window.localStorage.getItem('fixedExpenses') && (
@@ -848,6 +1054,94 @@ export default function WeddingSimulator() {
                             transition={{ duration: 0.3, ease: 'easeOut' }}
                             className="grid grid-cols-1 md:grid-cols-2 gap-6"
                         >
+
+                            {/* Smart Action Queue — what to do this week */}
+                            <div className="md:col-span-2 bg-gradient-to-br from-[#FFE5ED] via-white to-[#FFF5F8] rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(255,77,127,0.08)] border border-[#FFDEDE]">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-[#FF4D7F] text-white p-2.5 rounded-2xl shadow-md shadow-pink-200">
+                                            <Wand2 size={22} strokeWidth={1.7} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-[#FF4D7F] uppercase tracking-widest">פעולות חכמות</p>
+                                            <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">מה לעשות השבוע</h2>
+                                        </div>
+                                    </div>
+                                    <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-[#FFDEDE] text-[#FF4D7F]">
+                                        {smartActions.length === 0 ? 'הכול תחת שליטה ✨' : `${smartActions.length} פתוחות`}
+                                    </div>
+                                </div>
+                                {smartActions.length === 0 ? (
+                                    <div className="bg-white/70 border border-emerald-200 rounded-2xl p-6 text-center">
+                                        <div className="text-4xl mb-2">🎉</div>
+                                        <p className="font-bold text-emerald-700">אין פעולות דחופות לשבוע הקרוב</p>
+                                        <p className="text-sm text-slate-500 mt-1">כל המקדמות בזמן ואין משימות באיחור.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {smartActions.map(action => {
+                                            const message = action.whatsappName
+                                                ? `היי ${action.whatsappName}, מדברים נדב וליטל מהחתונה ב-23.6.26. רציתי לתאם איתך בנושא ${action.topic}. תודה!`
+                                                : `היי, מדברים נדב וליטל מהחתונה ב-23.6.26. רציתי לתאם איתך בנושא ${action.topic || ''}. תודה!`;
+                                            const waLink = buildWhatsappLink(action.whatsappPhone, message);
+                                            const urgencyClasses = action.urgency === 'high'
+                                                ? 'border-rose-200 bg-rose-50/60'
+                                                : action.urgency === 'medium'
+                                                    ? 'border-amber-200 bg-amber-50/50'
+                                                    : 'border-slate-200 bg-white';
+                                            return (
+                                                <div key={action.key} className={`flex items-center gap-3 p-4 rounded-2xl border ${urgencyClasses} shadow-sm`}>
+                                                    <div className="text-2xl flex-shrink-0">{action.emoji}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold text-[#1F1A1A] text-sm truncate">{action.title}</p>
+                                                        <p className="text-xs text-slate-500 truncate">{action.reason}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                        {waLink && (
+                                                            <a
+                                                                href={waLink}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl shadow-sm transition-colors"
+                                                                title="WhatsApp"
+                                                            >
+                                                                <MessageCircle size={16} strokeWidth={2} />
+                                                            </a>
+                                                        )}
+                                                        {action.kind === 'checklist' && action.checklistId !== undefined && (
+                                                            <button
+                                                                onClick={() => toggleChecklistItem(action.checklistId!)}
+                                                                className="bg-[#FF4D7F] hover:bg-[#e63e6d] text-white p-2 rounded-xl shadow-sm transition-colors"
+                                                                title="סמן כבוצע"
+                                                            >
+                                                                <CheckCircle2 size={16} strokeWidth={2} />
+                                                            </button>
+                                                        )}
+                                                        {(action.kind === 'vendor-advance' || action.kind === 'vendor-final') && action.expenseId !== undefined && (
+                                                            <button
+                                                                onClick={() => setActiveTab('expenses')}
+                                                                className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-xl shadow-sm transition-colors"
+                                                                title="לערוך"
+                                                            >
+                                                                <Receipt size={16} strokeWidth={2} />
+                                                            </button>
+                                                        )}
+                                                        {action.kind === 'runsheet' && (
+                                                            <button
+                                                                onClick={() => setActiveTab('runsheet')}
+                                                                className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-xl shadow-sm transition-colors"
+                                                                title="פתח יום החתונה"
+                                                            >
+                                                                <AlarmClock size={16} strokeWidth={2} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Visual Budget Progress Bar */}
                             <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
@@ -1714,6 +2008,159 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
+                        </motion.div>
+                    )}
+
+                    {/* TAB CONTENT: RUN SHEET — wedding day */}
+                    {activeTab === 'runsheet' && (
+                        <motion.div
+                            key="runsheet"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="space-y-6"
+                        >
+                            {/* Day-of summary cards */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-white rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">מזומן ביום</p>
+                                    <p className="text-2xl font-extrabold text-emerald-600 tracking-tight">{formatMoney(runSheetSummary.totalCash)}</p>
+                                </div>
+                                <div className="bg-white rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">צ'קים</p>
+                                    <p className="text-2xl font-extrabold text-indigo-600 tracking-tight">{formatMoney(runSheetSummary.totalChecks)}</p>
+                                </div>
+                                <div className="bg-white rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">העברה</p>
+                                    <p className="text-2xl font-extrabold text-sky-600 tracking-tight">{formatMoney(runSheetSummary.totalTransfer)}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-[#FF4D7F] to-[#e63e6d] rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(255,77,127,0.25)] text-white relative overflow-hidden">
+                                    <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/20 rounded-full blur-2xl"></div>
+                                    <p className="text-xs font-bold text-white/80 uppercase tracking-widest mb-2 relative z-10">מוכנות מעטפות</p>
+                                    <p className="text-2xl font-extrabold tracking-tight relative z-10">{runSheetSummary.readyCount} / {runSheetSummary.totalCount}</p>
+                                </div>
+                            </div>
+
+                            {/* Vendor envelopes — final payments */}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">תשלום סופי לכל ספק</p>
+                                        <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">מעטפות ליום החתונה</h2>
+                                    </div>
+                                    <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 border border-emerald-200 text-emerald-700">
+                                        סה"כ: {formatMoney(runSheetSummary.totalRemaining)}
+                                    </div>
+                                </div>
+                                {runSheetSummary.vendors.length === 0 ? (
+                                    <p className="text-sm text-slate-500 text-center py-8">אין ספקים עם יתרה לתשלום סופי. הוסיפו הוצאות בטאב "הוצאות וספקים".</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {runSheetSummary.vendors.map(v => (
+                                            <div key={v.id} className={`grid grid-cols-12 gap-2 items-center p-3 rounded-2xl border transition-colors ${v.payment_ready ? 'bg-emerald-50/50 border-emerald-200' : 'bg-[#F8F8F8] border-slate-100'}`}>
+                                                <button
+                                                    onClick={() => updateExpense(v.id, 'payment_ready', !v.payment_ready)}
+                                                    className={`col-span-1 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${v.payment_ready ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-300 hover:border-emerald-400'}`}
+                                                    title={v.payment_ready ? 'מעטפה מוכנה' : 'סמן כמוכן'}
+                                                >
+                                                    {v.payment_ready && <CheckCircle2 size={16} strokeWidth={2.5} />}
+                                                </button>
+                                                <div className="col-span-11 md:col-span-3 min-w-0">
+                                                    <div className="font-semibold text-[#1F1A1A] truncate text-sm">{getExpenseEmoji(v.name)} {v.name}</div>
+                                                    {v.contact_name && <div className="text-xs text-slate-500 truncate">{v.contact_name}</div>}
+                                                </div>
+                                                <input
+                                                    type="time"
+                                                    value={v.arrival_time || ''}
+                                                    onChange={(e) => updateExpense(v.id, 'arrival_time', e.target.value)}
+                                                    className="col-span-3 md:col-span-2 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                    title="שעת הגעה"
+                                                />
+                                                <select
+                                                    value={v.payment_method || 'מזומן'}
+                                                    onChange={(e) => updateExpense(v.id, 'payment_method', e.target.value)}
+                                                    className="col-span-4 md:col-span-2 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                >
+                                                    {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                                <select
+                                                    value={v.payment_holder || ''}
+                                                    onChange={(e) => updateExpense(v.id, 'payment_holder', e.target.value)}
+                                                    className="col-span-5 md:col-span-2 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                >
+                                                    <option value="">מי מחזיק?</option>
+                                                    {PAYMENT_HOLDERS.map(h => <option key={h} value={h}>{h}</option>)}
+                                                </select>
+                                                <div className="col-span-12 md:col-span-2 text-left md:text-right">
+                                                    <span className="font-bold text-[#FF4D7F] text-sm">{formatMoney(v.remainingAmount)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {runSheetSummary.venueFinal > 0 && (
+                                    <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm text-emerald-800">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">🏛️</span>
+                                                <span className="font-semibold">תשלום סופי לאולם — באחריות ההורים</span>
+                                            </div>
+                                            <span className="font-bold">{formatMoney(Math.round(runSheetSummary.venueFinal))}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Wedding-day timeline */}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">לוח זמנים</p>
+                                        <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">סדר היום</h2>
+                                    </div>
+                                    <button
+                                        onClick={addRunSheetEvent}
+                                        className="bg-[#FF4D7F] hover:bg-[#e63e6d] text-white font-semibold py-2 px-4 rounded-xl transition-colors text-sm flex items-center gap-2 shadow-sm"
+                                    >
+                                        <Plus size={16} strokeWidth={2} />
+                                        הוסף שלב
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {[...runSheetEvents].sort((a, b) => a.time.localeCompare(b.time)).map(ev => (
+                                        <div key={ev.id} className="grid grid-cols-12 gap-2 items-center p-3 rounded-2xl bg-[#F8F8F8] border border-slate-100">
+                                            <input
+                                                type="time"
+                                                value={ev.time}
+                                                onChange={(e) => updateRunSheetEvent(ev.id, 'time', e.target.value)}
+                                                className="col-span-3 md:col-span-2 px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-[#FF4D7F] text-center focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={ev.title}
+                                                onChange={(e) => updateRunSheetEvent(ev.id, 'title', e.target.value)}
+                                                placeholder="מה קורה?"
+                                                className="col-span-9 md:col-span-5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={ev.responsible}
+                                                onChange={(e) => updateRunSheetEvent(ev.id, 'responsible', e.target.value)}
+                                                placeholder="אחראי"
+                                                className="col-span-10 md:col-span-4 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={() => removeRunSheetEvent(ev.id)}
+                                                className="col-span-2 md:col-span-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg p-2 transition-colors flex items-center justify-center"
+                                                title="הסר"
+                                            >
+                                                <Trash2 size={16} strokeWidth={1.7} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
