@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Building2 } from 'lucide-react';
+import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Settings, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -150,9 +150,7 @@ export default function WeddingSimulator() {
     };
 
     // Navigation State
-    const [activeTab, setActiveTab] = useState('home'); // 'home', 'budget', 'plan', 'runsheet'
-    const [budgetSubTab, setBudgetSubTab] = useState<'venue' | 'income' | 'expenses' | 'cashflow'>('venue');
-    const [planSubTab, setPlanSubTab] = useState<'tasks' | 'savings' | 'scenarios'>('tasks');
+    const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'runsheet' | 'settings'>('home');
 
     // Wedding Date Setup
     const weddingDate = new Date('2026-06-23');
@@ -976,18 +974,17 @@ export default function WeddingSimulator() {
                     </div>
                 </motion.div>
 
-                {/* Main tabs (4) */}
+                {/* Main tabs (3) + settings gear */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="sticky top-4 z-50 mb-4 flex justify-center"
+                    className="sticky top-4 z-50 mb-8 flex justify-center items-center gap-3"
                 >
                     <div className="inline-flex flex-wrap justify-center gap-1.5 bg-white/80 backdrop-blur-xl border border-slate-200/70 rounded-full p-1.5 shadow-[0_4px_20px_rgb(0,0,0,0.04)]">
                         {([
                             { id: 'home', label: 'בית', Icon: Home },
-                            { id: 'budget', label: 'תקציב', Icon: Wallet },
-                            { id: 'plan', label: 'תכנון', Icon: ListChecks },
+                            { id: 'tasks', label: 'משימות', Icon: ListChecks },
                             { id: 'runsheet', label: 'יום ה-X', Icon: AlarmClock },
                         ] as const).map(({ id, label, Icon }) => (
                             <button
@@ -1000,56 +997,14 @@ export default function WeddingSimulator() {
                             </button>
                         ))}
                     </div>
+                    <button
+                        onClick={() => setActiveTab(activeTab === 'settings' ? 'home' : 'settings')}
+                        className={`p-2.5 rounded-full transition-all duration-300 shadow-[0_4px_20px_rgb(0,0,0,0.04)] border ${activeTab === 'settings' ? 'bg-[#1F1A1A] text-white border-[#1F1A1A]' : 'bg-white/80 backdrop-blur-xl text-slate-600 border-slate-200/70 hover:bg-slate-100'}`}
+                        title="הגדרות וכלים"
+                    >
+                        {activeTab === 'settings' ? <X size={18} strokeWidth={1.7} /> : <Settings size={18} strokeWidth={1.7} />}
+                    </button>
                 </motion.div>
-
-                {/* Sub-tabs for budget */}
-                {activeTab === 'budget' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex flex-wrap justify-center gap-2 mb-6"
-                    >
-                        {([
-                            { id: 'venue', label: 'אולם & מדד', Icon: Building2 },
-                            { id: 'income', label: 'אורחים', Icon: Users },
-                            { id: 'expenses', label: 'ספקים', Icon: Receipt },
-                            { id: 'cashflow', label: 'תזרים', Icon: Wallet },
-                        ] as const).map(({ id, label, Icon }) => (
-                            <button
-                                key={id}
-                                onClick={() => setBudgetSubTab(id)}
-                                className={`flex items-center gap-1.5 py-1.5 px-4 rounded-full font-medium text-xs transition-all ${budgetSubTab === id ? 'bg-[#1F1A1A] text-white shadow-sm' : 'bg-slate-100/70 text-slate-600 hover:bg-slate-200'}`}
-                            >
-                                <Icon size={13} strokeWidth={1.7} />
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-
-                {/* Sub-tabs for plan */}
-                {activeTab === 'plan' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex flex-wrap justify-center gap-2 mb-6"
-                    >
-                        {([
-                            { id: 'tasks', label: 'משימות', Icon: CheckCircle2 },
-                            { id: 'savings', label: 'חיסכון', Icon: Banknote },
-                            { id: 'scenarios', label: 'תרחישים & פילוח', Icon: BarChart3 },
-                        ] as const).map(({ id, label, Icon }) => (
-                            <button
-                                key={id}
-                                onClick={() => setPlanSubTab(id)}
-                                className={`flex items-center gap-1.5 py-1.5 px-4 rounded-full font-medium text-xs transition-all ${planSubTab === id ? 'bg-[#1F1A1A] text-white shadow-sm' : 'bg-slate-100/70 text-slate-600 hover:bg-slate-200'}`}
-                            >
-                                <Icon size={13} strokeWidth={1.7} />
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
 
                 {window.localStorage.getItem('fixedExpenses') && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-3xl p-4 flex justify-between items-center shadow-sm">
@@ -1205,7 +1160,7 @@ export default function WeddingSimulator() {
                                                         )}
                                                         {(action.kind === 'vendor-advance' || action.kind === 'vendor-final') && action.expenseId !== undefined && (
                                                             <button
-                                                                onClick={() => { setActiveTab('budget'); setBudgetSubTab('expenses'); }}
+                                                                onClick={() => setActiveTab('settings')}
                                                                 className="bg-slate-700 hover:bg-slate-800 text-white p-2 rounded-xl shadow-sm transition-colors"
                                                                 title="לערוך"
                                                             >
@@ -1285,8 +1240,26 @@ export default function WeddingSimulator() {
                         </motion.div>
                     )}
 
-                    {/* TAB CONTENT: BUDGET → VENUE & CPI */}
-                    {activeTab === 'budget' && budgetSubTab === 'venue' && (
+                    {/* SETTINGS — header banner */}
+                    {activeTab === 'settings' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="md:col-span-2 bg-[#1F1A1A] text-white rounded-3xl p-5 mb-2 flex items-center gap-3"
+                        >
+                            <div className="bg-white/10 p-2 rounded-xl">
+                                <Settings size={18} strokeWidth={1.7} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">הגדרות וכלים</p>
+                                <p className="font-bold tracking-tight">חישובי תקציב, ספקים, תרחישים ופילוחים</p>
+                            </div>
+                            <button onClick={() => setActiveTab('home')} className="mr-auto bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors">חזרה לבית</button>
+                        </motion.div>
+                    )}
+
+                    {/* SETTINGS: VENUE & CPI */}
+                    {activeTab === 'settings' && (
                         <motion.div
                             key="budget-venue"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1412,8 +1385,8 @@ export default function WeddingSimulator() {
                         </motion.div>
                     )}
 
-                    {/* TAB CONTENT: BUDGET → INCOME & GUESTS */}
-                    {activeTab === 'budget' && budgetSubTab === 'income' && (
+                    {/* SETTINGS: INCOME & GUESTS */}
+                    {activeTab === 'settings' && (
                         <motion.div
                             key="income"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1646,8 +1619,8 @@ export default function WeddingSimulator() {
                         </motion.div>
                     )}
 
-                    {/* TAB CONTENT: BUDGET → EXPENSES */}
-                    {activeTab === 'budget' && budgetSubTab === 'expenses' && (
+                    {/* SETTINGS: EXPENSES (vendors CRUD) */}
+                    {activeTab === 'settings' && (
                         <motion.div
                             key="expenses"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1853,10 +1826,10 @@ export default function WeddingSimulator() {
 
                         </motion.div>
                     )}
-                    {/* TAB CONTENT: PLAN */}
-                    {activeTab === 'plan' && (
+                    {/* TAB CONTENT: TASKS + SETTINGS shared shell (rendered when either is active) */}
+                    {(activeTab === 'tasks' || activeTab === 'settings') && (
                         <motion.div
-                            key={`plan-${planSubTab}`}
+                            key={`shell-${activeTab}`}
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
                             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
                             exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1865,7 +1838,7 @@ export default function WeddingSimulator() {
                         >
 
                             {/* Scenario Comparison */}
-                            {planSubTab === 'scenarios' && (
+                            {activeTab === 'settings' && (
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
                                 <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
                                     <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
@@ -1901,7 +1874,7 @@ export default function WeddingSimulator() {
                             )}
 
                             {/* Savings Tracker */}
-                            {planSubTab === 'savings' && (
+                            {activeTab === 'settings' && (
                             <div className="bg-gradient-to-br from-slate-900 via-[#2a0a14] to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white border border-white/10 relative overflow-hidden md:col-span-2">
                                 <div className="absolute top-0 left-0 w-48 h-48 bg-[#FF4D7F]/10 blur-[60px] rounded-full pointer-events-none"></div>
                                 <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 tracking-tight relative z-10">
@@ -1951,7 +1924,7 @@ export default function WeddingSimulator() {
                             )}
 
                             {/* Expense Breakdown Donut */}
-                            {planSubTab === 'scenarios' && (
+                            {activeTab === 'settings' && (
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
                                 <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
                                     <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
@@ -2004,7 +1977,7 @@ export default function WeddingSimulator() {
                             )}
 
                             {/* Wedding Checklist */}
-                            {planSubTab === 'tasks' && (
+                            {activeTab === 'tasks' && (
                             <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-bold flex items-center gap-3 text-[#1F1A1A] tracking-tight">
@@ -2100,8 +2073,8 @@ export default function WeddingSimulator() {
 
                         </motion.div>
                     )}
-                    {/* TAB CONTENT: BUDGET → CASH FLOW */}
-                    {activeTab === 'budget' && budgetSubTab === 'cashflow' && (
+                    {/* SETTINGS: CASH FLOW */}
+                    {activeTab === 'settings' && (
                         <motion.div
                             key="cashflow"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
