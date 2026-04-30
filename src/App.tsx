@@ -15,6 +15,7 @@ interface Expense {
     payment_holder?: string;
     arrival_time?: string;
     payment_ready?: boolean;
+    advance_paid_by?: string;
 }
 
 interface RunSheetEvent {
@@ -39,6 +40,8 @@ const DEFAULT_RUN_SHEET: RunSheetEvent[] = [
 
 const PAYMENT_METHODS = ['מזומן', "צ'ק", 'העברה', 'אשראי'] as const;
 const PAYMENT_HOLDERS = ['חתן', 'כלה', 'אבא נדב', 'אמא נדב', 'אבא ליטל', 'אמא ליטל', 'אחר'] as const;
+const ADVANCE_PAYERS = ['נדב', 'ליטל', 'משותף'] as const;
+type AdvancePayer = typeof ADVANCE_PAYERS[number];
 
 interface ChecklistItem {
     id: number;
@@ -653,6 +656,27 @@ export default function WeddingSimulator() {
         return actions.sort((a, b) => order[a.urgency] - order[b.urgency]).slice(0, 8);
     }, [smartChecklistItems, fixedExpenses, daysLeft]);
 
+    // Advances breakdown by who paid (Nadav / Lital / shared / unassigned)
+    const advancePayerBreakdown = useMemo(() => {
+        const totals: Record<AdvancePayer | 'לא משויך', number> = {
+            'נדב': 0,
+            'ליטל': 0,
+            'משותף': 0,
+            'לא משויך': 0,
+        };
+        for (const e of fixedExpenses) {
+            const adv = Number(e.advance) || 0;
+            if (adv <= 0) continue;
+            const payer = (e.advance_paid_by as AdvancePayer | undefined);
+            if (payer && (ADVANCE_PAYERS as readonly string[]).includes(payer)) {
+                totals[payer] += adv;
+            } else {
+                totals['לא משויך'] += adv;
+            }
+        }
+        return totals;
+    }, [fixedExpenses]);
+
     // Day-of-event payment summary
     const runSheetSummary = useMemo(() => {
         const vendorsWithFinal = fixedExpenses
@@ -755,7 +779,7 @@ export default function WeddingSimulator() {
 
     const updateExpense = async (id: number, field: string, value: string | number | boolean) => {
         if (!configId) return;
-        const stringFields = ['contact_name', 'contact_phone', 'payment_method', 'payment_holder', 'arrival_time'];
+        const stringFields = ['contact_name', 'contact_phone', 'payment_method', 'payment_holder', 'arrival_time', 'advance_paid_by'];
         const booleanFields = ['payment_ready', 'paid'];
         const val: string | number | boolean =
             stringFields.includes(field) ? String(value) :
@@ -1730,6 +1754,40 @@ export default function WeddingSimulator() {
                                                     </div>
 
                                                     <AnimatePresence>
+                                                        {Number(expense.advance) > 0 && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="overflow-hidden"
+                                                            >
+                                                                <div className="grid grid-cols-12 gap-4 items-center pt-1">
+                                                                    <div className="col-span-5"></div>
+                                                                    <div className="col-span-7 flex items-center gap-2 flex-wrap justify-end">
+                                                                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">מי שילם את המקדמה?</span>
+                                                                        {ADVANCE_PAYERS.map(payer => {
+                                                                            const isActive = expense.advance_paid_by === payer;
+                                                                            return (
+                                                                                <button
+                                                                                    key={payer}
+                                                                                    type="button"
+                                                                                    onClick={() => updateExpense(expense.id, 'advance_paid_by', isActive ? '' : payer)}
+                                                                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isActive
+                                                                                        ? 'bg-[#FF4D7F] border-[#FF4D7F] text-white shadow-sm'
+                                                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-[#FFDEDE] hover:text-[#FF4D7F]'
+                                                                                        }`}
+                                                                                >
+                                                                                    {payer}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+
+                                                    <AnimatePresence>
                                                         {expense.paid && (
                                                             <motion.div
                                                                 initial={{ height: 0, opacity: 0 }}
@@ -2132,13 +2190,39 @@ export default function WeddingSimulator() {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">מקדמות ששולמו</p>
                                     )}
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).map(e => (
-                                        <div key={e.id} className="flex justify-between items-center text-sm py-1.5 border-b border-slate-50">
-                                            <span className="text-slate-500 truncate max-w-[65%]">{getExpenseEmoji(e.name)} {e.name}</span>
-                                            <span className="font-semibold text-[#FF4D7F]">{formatMoney(Number(e.advance))}</span>
+                                        <div key={e.id} className="flex justify-between items-center text-sm py-1.5 border-b border-slate-50 gap-2">
+                                            <span className="text-slate-500 truncate max-w-[55%]">{getExpenseEmoji(e.name)} {e.name}</span>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                {e.advance_paid_by && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                                        {e.advance_paid_by}
+                                                    </span>
+                                                )}
+                                                <span className="font-semibold text-[#FF4D7F]">{formatMoney(Number(e.advance))}</span>
+                                            </div>
                                         </div>
                                     ))}
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).length === 0 && (
                                         <p className="text-sm text-slate-400 italic py-2">אין מקדמות עדיין</p>
+                                    )}
+                                    {fixedExpenses.filter(e => Number(e.advance) > 0).length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">פילוח לפי משלם</p>
+                                            {(['נדב', 'ליטל', 'משותף'] as const).map(payer => (
+                                                advancePayerBreakdown[payer] > 0 && (
+                                                    <div key={payer} className="flex justify-between items-center text-xs">
+                                                        <span className="text-slate-500">{payer}</span>
+                                                        <span className="font-semibold text-[#333333]">{formatMoney(advancePayerBreakdown[payer])}</span>
+                                                    </div>
+                                                )
+                                            ))}
+                                            {advancePayerBreakdown['לא משויך'] > 0 && (
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-slate-400 italic">לא משויך</span>
+                                                    <span className="font-semibold text-slate-400">{formatMoney(advancePayerBreakdown['לא משויך'])}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {calculations.remainingFixedPayments > 0 && (
                                         <>
