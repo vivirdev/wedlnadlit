@@ -1734,16 +1734,32 @@ export default function WeddingSimulator() {
                                                             </div>
                                                         </div>
                                                         <div className="col-span-3">
-                                                            <div className="relative group">
-                                                                <input
-                                                                    type="number"
-                                                                    value={expense.advance}
-                                                                    onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
-                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
-                                                                        }`}
-                                                                    readOnly={expense.paid}
-                                                                />
-                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="relative group flex-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={expense.advance}
+                                                                        onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
+                                                                        className={`w-full pl-8 pr-3 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                            }`}
+                                                                        readOnly={expense.paid}
+                                                                    />
+                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
+                                                                </div>
+                                                                {Number(expense.advance) > 0 && (
+                                                                    <select
+                                                                        value={expense.advance_paid_by || ''}
+                                                                        onChange={(e) => updateExpense(expense.id, 'advance_paid_by', e.target.value)}
+                                                                        disabled={expense.paid}
+                                                                        title="מי שילם"
+                                                                        className={`px-2 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#FF4D7F] hover:border-[#FFDEDE] cursor-pointer ${expense.paid ? 'opacity-70 pointer-events-none' : ''}`}
+                                                                    >
+                                                                        <option value="">מי?</option>
+                                                                        {ADVANCE_PAYERS.map(p => (
+                                                                            <option key={p} value={p}>{p}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="col-span-1 flex justify-end">
@@ -1752,40 +1768,6 @@ export default function WeddingSimulator() {
                                                             </button>
                                                         </div>
                                                     </div>
-
-                                                    <AnimatePresence>
-                                                        {Number(expense.advance) > 0 && (
-                                                            <motion.div
-                                                                initial={{ height: 0, opacity: 0 }}
-                                                                animate={{ height: 'auto', opacity: 1 }}
-                                                                exit={{ height: 0, opacity: 0 }}
-                                                                className="overflow-hidden"
-                                                            >
-                                                                <div className="grid grid-cols-12 gap-4 items-center pt-1">
-                                                                    <div className="col-span-5"></div>
-                                                                    <div className="col-span-7 flex items-center gap-2 flex-wrap justify-end">
-                                                                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">מי שילם את המקדמה?</span>
-                                                                        {ADVANCE_PAYERS.map(payer => {
-                                                                            const isActive = expense.advance_paid_by === payer;
-                                                                            return (
-                                                                                <button
-                                                                                    key={payer}
-                                                                                    type="button"
-                                                                                    onClick={() => updateExpense(expense.id, 'advance_paid_by', isActive ? '' : payer)}
-                                                                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isActive
-                                                                                        ? 'bg-[#FF4D7F] border-[#FF4D7F] text-white shadow-sm'
-                                                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-[#FFDEDE] hover:text-[#FF4D7F]'
-                                                                                        }`}
-                                                                                >
-                                                                                    {payer}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                </div>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
 
                                                     <AnimatePresence>
                                                         {expense.paid && (
@@ -2190,38 +2172,28 @@ export default function WeddingSimulator() {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">מקדמות ששולמו</p>
                                     )}
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).map(e => (
-                                        <div key={e.id} className="flex justify-between items-center text-sm py-1.5 border-b border-slate-50 gap-2">
-                                            <span className="text-slate-500 truncate max-w-[55%]">{getExpenseEmoji(e.name)} {e.name}</span>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                        <div key={e.id} className="flex justify-between items-center text-sm py-1.5 border-b border-slate-50">
+                                            <span className="text-slate-500 truncate max-w-[65%]">
+                                                {getExpenseEmoji(e.name)} {e.name}
                                                 {e.advance_paid_by && (
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                                                        {e.advance_paid_by}
-                                                    </span>
+                                                    <span className="mr-1.5 text-[10px] font-semibold text-slate-400">· {e.advance_paid_by}</span>
                                                 )}
-                                                <span className="font-semibold text-[#FF4D7F]">{formatMoney(Number(e.advance))}</span>
-                                            </div>
+                                            </span>
+                                            <span className="font-semibold text-[#FF4D7F]">{formatMoney(Number(e.advance))}</span>
                                         </div>
                                     ))}
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).length === 0 && (
                                         <p className="text-sm text-slate-400 italic py-2">אין מקדמות עדיין</p>
                                     )}
-                                    {fixedExpenses.filter(e => Number(e.advance) > 0).length > 0 && (
-                                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">פילוח לפי משלם</p>
+                                    {(advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + advancePayerBreakdown['משותף']) > 0 && (
+                                        <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
                                             {(['נדב', 'ליטל', 'משותף'] as const).map(payer => (
                                                 advancePayerBreakdown[payer] > 0 && (
-                                                    <div key={payer} className="flex justify-between items-center text-xs">
-                                                        <span className="text-slate-500">{payer}</span>
-                                                        <span className="font-semibold text-[#333333]">{formatMoney(advancePayerBreakdown[payer])}</span>
-                                                    </div>
+                                                    <span key={payer} className="text-slate-500">
+                                                        {payer}: <span className="font-semibold text-[#333333]">{formatMoney(advancePayerBreakdown[payer])}</span>
+                                                    </span>
                                                 )
                                             ))}
-                                            {advancePayerBreakdown['לא משויך'] > 0 && (
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-slate-400 italic">לא משויך</span>
-                                                    <span className="font-semibold text-slate-400">{formatMoney(advancePayerBreakdown['לא משויך'])}</span>
-                                                </div>
-                                            )}
                                         </div>
                                     )}
                                     {calculations.remainingFixedPayments > 0 && (
