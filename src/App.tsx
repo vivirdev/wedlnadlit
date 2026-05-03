@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
+import { Users, Plus, Trash2, Heart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -200,8 +200,6 @@ export default function WeddingSimulator() {
     // Safety Buffer State
     const [useSafetyBuffer, setSafetyBuffer] = useState(true);
 
-    // Savings Tracker
-    const [monthlySaving, setMonthlySaving] = useState(3000);
     const [nadavMomGift, setNadavMomGift] = useState<number>(40000);
 
     // Array States
@@ -234,7 +232,6 @@ export default function WeddingSimulator() {
                 setInvitedGuests(configRes.data.invited_guests);
                 setNoShowPercent(configRes.data.no_show_percent);
                 setAvgGift(configRes.data.avg_gift);
-                setMonthlySaving(configRes.data.monthly_saving);
                 setSafetyBuffer(configRes.data.use_safety_buffer);
                 setNadavMomGift(configRes.data.nadav_mom_gift);
                 const remoteEvents = configRes.data.run_sheet_events as RunSheetEvent[] | null;
@@ -485,12 +482,6 @@ export default function WeddingSimulator() {
             scenarios, expenseCategories, totalFixedAdvances, remainingFixedPayments,
         };
     }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent, cpiData]);
-
-    // Savings Calculations
-    const monthsLeft = Math.max(1, Math.ceil(daysLeft / 30));
-    const totalSavingsByWedding = monthlySaving * monthsLeft;
-    const savingsNeeded = calculations.totalAdvancesPaid; // advances needed before wedding
-    const savingsProgress = Math.min((totalSavingsByWedding / Math.max(1, savingsNeeded)) * 100, 100);
 
     // Checklist calculations
     const smartChecklistItems = useMemo(() => {
@@ -1244,56 +1235,6 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
-                            {/* Venue Details - Full Width */}
-                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
-                                <div className="mb-6">
-                                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">התחייבויות לאולם</p>
-                                    <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
-                                        תקציר האולם
-                                    </h2>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100">
-                                        <p className="text-sm font-medium text-slate-600 mb-4">{calculations.costBreakdown}</p>
-                                        <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-4">
-                                            <span className="font-semibold text-slate-500">סה"כ לתשלום:</span>
-                                            <span className="font-bold text-[#FF4D7F] text-xl">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
-                                        </div>
-
-                                        {/* Venue Payment Schedule Breakdown */}
-                                        <div className="space-y-3 text-sm pt-2">
-                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">פריסת תשלומים</p>
-                                            <div className="flex justify-between text-slate-600 items-center">
-                                                <span className="font-medium">מקדמה 1 (חתימה):</span>
-                                                <span className="font-bold">{formatMoney(calculations.venueAdvance1)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-slate-600 items-center">
-                                                <span className="font-medium">מקדמה 2 (חודש לפני):</span>
-                                                <span className="font-bold">{formatMoney(calculations.venueAdvance2)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-center text-center">
-                                        <p className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">יתרה מאוחרת אולם (ביום האירוע)</p>
-                                        <div className="space-y-3">
-                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
-                                                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-1">ההורים</p>
-                                                <span className="text-2xl font-extrabold text-emerald-700">{formatMoney(Math.round(calculations.parentsFinalPayment))}</span>
-                                                <p className="text-[10px] text-emerald-600/80 font-medium mt-1">בסיס החוזה (137,250 ₪) פחות מקדמות</p>
-                                            </div>
-                                            {calculations.venueOverage > 0 && (
-                                                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3">
-                                                    <p className="text-[10px] font-bold text-rose-700 uppercase tracking-widest mb-1">עליכם</p>
-                                                    <span className="text-2xl font-extrabold text-rose-600">{formatMoney(Math.round(calculations.venueOverage))}</span>
-                                                    <p className="text-[10px] text-rose-600/80 font-medium mt-1">הצמדה + תוספת מנות מעל הבסיס</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </motion.div>
                     )}
 
@@ -1775,145 +1716,6 @@ export default function WeddingSimulator() {
                             transition={{ duration: 0.3, ease: 'easeOut' }}
                             className="grid grid-cols-1 md:grid-cols-2 gap-6"
                         >
-
-                            {/* Scenario Comparison */}
-                            {activeTab === 'settings' && (
-                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
-                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
-                                    <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
-                                        <BarChart3 size={24} strokeWidth={1.5} />
-                                    </div>
-                                    השוואת תרחישים
-                                </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {calculations.scenarios.map((s, i) => (
-                                        <div key={i} className={`rounded-3xl p-6 border relative overflow-hidden ${s.color === 'rose' ? 'bg-rose-50/50 border-rose-200' :
-                                            s.color === 'pink' ? 'bg-[#FFE5ED]/50 border-[#FFDEDE] ring-2 ring-[#FFDEDE]' :
-                                                'bg-emerald-50/50 border-emerald-200'
-                                            }`}>
-                                            {s.color === 'pink' && <div className="absolute top-2 left-2 bg-[#FF4D7F] text-white text-xs font-medium px-2 py-0.5 rounded-full">נוכחי</div>}
-                                            <p className={`text-sm font-medium uppercase tracking-widest mb-4 ${s.color === 'rose' ? 'text-rose-600' : s.color === 'pink' ? 'text-[#FF4D7F]' : 'text-emerald-600'
-                                                }`}>{s.label}</p>
-                                            <div className="space-y-3 text-sm">
-                                                <div className="flex justify-between"><span className="text-slate-600">ממוצע מתנה:</span><span className="font-semibold">{formatMoney(s.avgGift)}</span></div>
-                                                <div className="flex justify-between"><span className="text-slate-600">אי-הגעה:</span><span className="font-semibold">{s.noShow}%</span></div>
-                                                <div className="flex justify-between"><span className="text-slate-600">מגיעים:</span><span className="font-semibold">{s.guests}</span></div>
-                                                <div className="flex justify-between"><span className="text-slate-600">הכנסה כוללת:</span><span className="font-semibold">{formatMoney(s.income)}</span></div>
-                                                <div className={`flex justify-between pt-3 border-t ${s.balance >= 0 ? 'border-emerald-200' : 'border-rose-200'}`}>
-                                                    <span className="font-medium">שורה תחתונה:</span>
-                                                    <span className={`font-semibold text-lg ${s.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                                        {s.balance > 0 ? '+' : ''}{formatMoney(s.balance)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            )}
-
-                            {/* Savings Tracker */}
-                            {activeTab === 'settings' && (
-                            <div className="bg-gradient-to-br from-slate-900 via-[#2a0a14] to-slate-900 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-white border border-white/10 relative overflow-hidden md:col-span-2">
-                                <div className="absolute top-0 left-0 w-48 h-48 bg-[#FF4D7F]/10 blur-[60px] rounded-full pointer-events-none"></div>
-                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 tracking-tight relative z-10">
-                                    <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm">
-                                        <Banknote className="text-[#FFDEDE]" size={24} strokeWidth={1.5} />
-                                    </div>
-                                    מעקב חיסכון חודשי
-                                </h2>
-                                <div className="space-y-6 relative z-10">
-                                    <div>
-                                        <div className="flex justify-between items-center mb-3">
-                                            <label className="font-medium text-[#FFE5ED]">כמה אתם חוסכים בחודש?</label>
-                                            <input
-                                                type="number"
-                                                value={monthlySaving}
-                                                onChange={(e) => setMonthlySaving(Number(e.target.value))}
-                                                onBlur={(e) => updateConfig('monthly_saving', Number(e.target.value))}
-                                                className="w-28 px-3 py-2 text-xl font-semibold text-[#FF4D7F] bg-white/10 border border-white/20 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-[#FF4D7F] backdrop-blur-sm"
-                                            />
-                                        </div>
-                                        <input
-                                            type="range" min="0" max="15000" step="500"
-                                            value={monthlySaving}
-                                            onChange={(e) => setMonthlySaving(Number(e.target.value))}
-                                            onMouseUp={(e) => updateConfig('monthly_saving', Number((e.target as HTMLInputElement).value))}
-                                            className="w-full h-2.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#FF4D7F]"
-                                        />
-                                    </div>
-                                    <div className="bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 space-y-3">
-                                        <div className="flex justify-between text-[#FFE5ED]"><span>חודשים שנותרו:</span><span className="font-semibold text-white">{monthsLeft}</span></div>
-                                        <div className="flex justify-between text-[#FFE5ED]"><span>סה"כ חיסכון עד החתונה:</span><span className="font-semibold text-[#FF4D7F] text-xl">{formatMoney(totalSavingsByWedding)}</span></div>
-                                        <div className="flex justify-between text-[#FFE5ED]"><span>מקדמות שנדרשות:</span><span className="font-semibold text-[#FFDEDE]">{formatMoney(savingsNeeded)}</span></div>
-                                        <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden mt-2">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${savingsProgress}%` }}
-                                                transition={{ duration: 1, ease: "easeOut" }}
-                                                className={`h-full rounded-full ${savingsProgress >= 100 ? 'bg-pink-400' : 'bg-slate-400'}`}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-[#FFDEDE] text-center mt-1">
-                                            {savingsProgress >= 100 ? '🎉 מכוסה לחלוטין!' : `${savingsProgress.toFixed(0)}% מכוסה — צריך עוד ${formatMoney(Math.max(0, savingsNeeded - totalSavingsByWedding))}`}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            )}
-
-                            {/* Expense Breakdown Donut */}
-                            {activeTab === 'settings' && (
-                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
-                                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 text-[#1F1A1A] tracking-tight">
-                                    <div className="bg-[#FFDEDE] text-[#FF4D7F] p-2.5 rounded-2xl">
-                                        <PieChart size={24} strokeWidth={1.5} />
-                                    </div>
-                                    פילוח הוצאות
-                                </h2>
-                                <div className="flex flex-col items-center gap-6">
-                                    {/* SVG Donut */}
-                                    <svg viewBox="0 0 120 120" className="w-48 h-48">
-                                        {(() => {
-                                            const total = calculations.expenseCategories.reduce((s: number, c: { amount: number }) => s + c.amount, 0);
-                                            let offset = 0;
-                                            return calculations.expenseCategories.filter(c => c.amount > 0).map((cat, i) => {
-                                                const pct = total > 0 ? (cat.amount / total) * 100 : 0;
-                                                const dashArray = `${pct * 2.83} ${283 - pct * 2.83}`;
-                                                const dashOffset = -offset * 2.83;
-                                                offset += pct;
-                                                return (
-                                                    <circle key={i} cx="60" cy="60" r="45" fill="none"
-                                                        stroke={cat.color} strokeWidth="18"
-                                                        strokeDasharray={dashArray}
-                                                        strokeDashoffset={dashOffset}
-                                                        className="transition-all duration-500"
-                                                        style={{ transformOrigin: 'center', transform: 'rotate(-90deg)' }}
-                                                    />
-                                                );
-                                            });
-                                        })()}
-                                        <text x="60" y="56" textAnchor="middle" className="text-[10px] font-semibold fill-slate-900">{formatMoney(calculations.totalExpenses)}</text>
-                                        <text x="60" y="70" textAnchor="middle" className="text-[6px] font-medium fill-slate-500">סה"כ הוצאות</text>
-                                    </svg>
-                                    {/* Legend */}
-                                    <div className="grid grid-cols-2 gap-3 w-full">
-                                        {calculations.expenseCategories.filter(c => c.amount > 0).map((cat, i) => {
-                                            const total = calculations.expenseCategories.reduce((s, c) => s + c.amount, 0);
-                                            const pct = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : '0';
-                                            return (
-                                                <div key={i} className="flex items-center gap-2 text-sm">
-                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                                                    <span className="text-slate-700 font-medium truncate">{cat.name}</span>
-                                                    <span className="text-slate-400 mr-auto">{pct}%</span>
-                                                    <span className="font-semibold text-[#333333]">{formatMoney(cat.amount)}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                            )}
 
                             {/* Wedding Checklist */}
                             {activeTab === 'tasks' && (
