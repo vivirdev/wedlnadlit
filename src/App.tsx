@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Settings, X } from 'lucide-react';
+import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -213,6 +213,15 @@ export default function WeddingSimulator() {
     const [newExpenseName, setNewExpenseName] = useState('');
     const [newExpenseAmount, setNewExpenseAmount] = useState('');
     const [newExpenseAdvance, setNewExpenseAdvance] = useState('');
+    const [expandedExpenseIds, setExpandedExpenseIds] = useState<Set<number>>(new Set());
+
+    const toggleExpenseExpanded = (id: number) => {
+        setExpandedExpenseIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
 
     const loadData = async (id: number) => {
         try {
@@ -1734,69 +1743,80 @@ export default function WeddingSimulator() {
                                                             </div>
                                                         </div>
                                                         <div className="col-span-3">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <div className="relative group flex-1">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={expense.advance}
-                                                                        onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
-                                                                        className={`w-full pl-8 pr-3 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
-                                                                            }`}
-                                                                        readOnly={expense.paid}
-                                                                    />
-                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
-                                                                </div>
-                                                                {Number(expense.advance) > 0 && (
-                                                                    <select
-                                                                        value={expense.advance_paid_by || ''}
-                                                                        onChange={(e) => updateExpense(expense.id, 'advance_paid_by', e.target.value)}
-                                                                        disabled={expense.paid}
-                                                                        title="מי שילם"
-                                                                        className={`px-2 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#FF4D7F] hover:border-[#FFDEDE] cursor-pointer ${expense.paid ? 'opacity-70 pointer-events-none' : ''}`}
-                                                                    >
-                                                                        <option value="">מי?</option>
-                                                                        {ADVANCE_PAYERS.map(p => (
-                                                                            <option key={p} value={p}>{p}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                )}
+                                                            <div className="relative group">
+                                                                <input
+                                                                    type="number"
+                                                                    value={expense.advance}
+                                                                    onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
+                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                        }`}
+                                                                    readOnly={expense.paid}
+                                                                />
+                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
                                                             </div>
                                                         </div>
-                                                        <div className="col-span-1 flex justify-end">
-                                                            <button onClick={() => removeExpense(expense.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+                                                        <div className="col-span-1 flex justify-end items-center gap-0.5">
+                                                            <button
+                                                                onClick={() => toggleExpenseExpanded(expense.id)}
+                                                                title="פרטים נוספים"
+                                                                className={`p-2 rounded-xl transition-colors ${expandedExpenseIds.has(expense.id) ? 'text-[#FF4D7F] bg-[#FFE5ED]' : 'text-slate-400 hover:text-[#FF4D7F] hover:bg-slate-50'}`}
+                                                            >
+                                                                <ChevronDown size={18} strokeWidth={1.5} className={`transition-transform ${expandedExpenseIds.has(expense.id) ? 'rotate-180' : ''}`} />
+                                                            </button>
+                                                            <button onClick={() => removeExpense(expense.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
                                                                 <Trash2 size={18} strokeWidth={1.5} />
                                                             </button>
                                                         </div>
                                                     </div>
 
                                                     <AnimatePresence>
-                                                        {expense.paid && (
+                                                        {expandedExpenseIds.has(expense.id) && (
                                                             <motion.div
                                                                 initial={{ height: 0, opacity: 0 }}
                                                                 animate={{ height: 'auto', opacity: 1 }}
                                                                 exit={{ height: 0, opacity: 0 }}
-                                                                className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3 overflow-hidden bg-[#F8F8F8] rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2"
+                                                                className="pt-3 border-t border-slate-100 overflow-hidden bg-[#F8F8F8] rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2 flex flex-col gap-3"
                                                             >
-                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
-                                                                    <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">איש קשר:</span>
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="הכנס שם ספק/איש קשר"
-                                                                        value={expense.contact_name || ''}
-                                                                        onChange={(e) => updateExpense(expense.id, 'contact_name', e.target.value)}
-                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
-                                                                    />
-                                                                </div>
-                                                                <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
-                                                                    <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">טלפון:</span>
-                                                                    <input
-                                                                        type="tel"
-                                                                        placeholder="05X-XXXXXXX"
-                                                                        value={expense.contact_phone || ''}
-                                                                        onChange={(e) => updateExpense(expense.id, 'contact_phone', e.target.value)}
-                                                                        className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
-                                                                        dir="ltr"
-                                                                    />
+                                                                {Number(expense.advance) > 0 && (
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">מי שילם את המקדמה:</span>
+                                                                        {ADVANCE_PAYERS.map(payer => {
+                                                                            const isActive = expense.advance_paid_by === payer;
+                                                                            return (
+                                                                                <button
+                                                                                    key={payer}
+                                                                                    type="button"
+                                                                                    onClick={() => updateExpense(expense.id, 'advance_paid_by', isActive ? '' : payer)}
+                                                                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isActive ? 'bg-[#FF4D7F] border-[#FF4D7F] text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-[#FFDEDE] hover:text-[#FF4D7F]'}`}
+                                                                                >
+                                                                                    {payer}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex flex-col sm:flex-row items-center gap-3">
+                                                                    <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
+                                                                        <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">איש קשר:</span>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="הכנס שם ספק/איש קשר"
+                                                                            value={expense.contact_name || ''}
+                                                                            onChange={(e) => updateExpense(expense.id, 'contact_name', e.target.value)}
+                                                                            className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
+                                                                        <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">טלפון:</span>
+                                                                        <input
+                                                                            type="tel"
+                                                                            placeholder="05X-XXXXXXX"
+                                                                            value={expense.contact_phone || ''}
+                                                                            onChange={(e) => updateExpense(expense.id, 'contact_phone', e.target.value)}
+                                                                            className="w-full px-3 py-2.5 bg-transparent text-sm font-medium outline-none text-[#333333] placeholder-slate-400/70"
+                                                                            dir="ltr"
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             </motion.div>
                                                         )}
@@ -2173,12 +2193,7 @@ export default function WeddingSimulator() {
                                     )}
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).map(e => (
                                         <div key={e.id} className="flex justify-between items-center text-sm py-1.5 border-b border-slate-50">
-                                            <span className="text-slate-500 truncate max-w-[65%]">
-                                                {getExpenseEmoji(e.name)} {e.name}
-                                                {e.advance_paid_by && (
-                                                    <span className="mr-1.5 text-[10px] font-semibold text-slate-400">· {e.advance_paid_by}</span>
-                                                )}
-                                            </span>
+                                            <span className="text-slate-500 truncate max-w-[65%]">{getExpenseEmoji(e.name)} {e.name}</span>
                                             <span className="font-semibold text-[#FF4D7F]">{formatMoney(Number(e.advance))}</span>
                                         </div>
                                     ))}
