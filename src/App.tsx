@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, TrendingUp, TrendingDown, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Wand2, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
+import { Users, Plus, Trash2, Heart, PieChart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Banknote, BarChart3, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -968,45 +968,6 @@ export default function WeddingSimulator() {
                     </p>
                 </motion.div>
 
-                {/* Pinned Summary Dashboard - ALWAYS VISIBLE */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:px-8"
-                >
-                    {/* Income Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE]">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">הכנסות והורים</p>
-                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalIncome)}</p>
-                    </div>
-
-                    {/* Expenses Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE] relative overflow-hidden">
-                        {useSafetyBuffer && <div className="absolute top-0 right-0 w-1.5 h-full bg-[#FFDEDE]"></div>}
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">סה"כ הוצאות</p>
-                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
-                    </div>
-
-                    {/* Advances Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(255,77,127,0.1)] transition-all group border border-transparent hover:border-[#FFDEDE]">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">מקדמות ששולמו</p>
-                        <p className="text-3xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(calculations.totalAdvancesPaid)}</p>
-                    </div>
-
-                    {/* Net Balance Card - Pink gradient */}
-                    <div className={`rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(255,77,127,0.25)] relative overflow-hidden group ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-[#FF4D7F] to-[#e63e6d]' : 'bg-gradient-to-br from-[#d4365e] to-[#c42f52]'}`}>
-                        <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/20 rounded-full blur-2xl group-hover:bg-white/30 transition-all"></div>
-                        <p className="text-xs font-bold text-white/80 uppercase tracking-widest mb-3 relative z-10">רווח משוער</p>
-                        <div className="flex items-center gap-2 relative z-10">
-                            {calculations.netBalance >= 0 ? <TrendingUp className="text-white opacity-80" size={24} strokeWidth={1.5} /> : <TrendingDown className="text-rose-200" size={24} strokeWidth={1.5} />}
-                            <p className="text-3xl font-extrabold text-white tracking-tight">
-                                {calculations.netBalance > 0 ? '+' : ''}{formatMoney(calculations.netBalance)}
-                            </p>
-                        </div>
-                    </div>
-                </motion.div>
-
                 {/* Main tabs (3) + settings gear */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1070,79 +1031,50 @@ export default function WeddingSimulator() {
                             className="grid grid-cols-1 md:grid-cols-2 gap-6"
                         >
 
-                            {/* Status snapshot grid — 4 KPI cards */}
-                            <div className="md:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                {/* Countdown */}
-                                <div className="bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] rounded-3xl p-5 text-white shadow-[0_12px_40px_rgba(255,77,127,0.25)] relative overflow-hidden">
-                                    <div className="absolute -bottom-6 -left-6 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/70 mb-2">⏰ עד החתונה</p>
-                                    <p className="text-4xl font-extrabold tracking-tight">{daysLeft}</p>
-                                    <p className="text-xs text-white/80 font-medium mt-1">ימים · 23.6.26</p>
+                            {/* Countdown hero — single focal point */}
+                            <div className="md:col-span-2 bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] rounded-[2rem] p-8 text-white shadow-[0_12px_40px_rgba(255,77,127,0.25)] relative overflow-hidden">
+                                <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                                <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-2">עד החתונה</p>
+                                <div className="flex items-baseline gap-3">
+                                    <p className="text-6xl font-extrabold tracking-tight">{daysLeft}</p>
+                                    <p className="text-lg text-white/90 font-medium">ימים · 23.6.26</p>
                                 </div>
-                                {/* Money */}
+                            </div>
+
+                            {/* Status row — 3 simple cards */}
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Balance */}
                                 <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">💰 עלות כוללת</p>
-                                    <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
-                                    <p className="text-xs text-slate-500 font-medium mt-1">
-                                        {calculations.netBalance >= 0
-                                            ? <span className="text-emerald-600">+{formatMoney(calculations.netBalance)} עודף</span>
-                                            : <span className="text-rose-600">-{formatMoney(Math.abs(calculations.netBalance))} חסר</span>}
+                                    <p className="text-[11px] font-semibold text-slate-500 mb-2">מאזן צפוי</p>
+                                    <p className={`text-2xl font-extrabold tracking-tight ${calculations.netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {calculations.netBalance >= 0 ? '+' : ''}{formatMoney(calculations.netBalance)}
                                     </p>
+                                    <p className="text-xs text-slate-400 mt-1">אחרי הוצאות וצפי מתנות</p>
                                 </div>
                                 {/* Tasks */}
                                 <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">✅ משימות</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mb-2">משימות</p>
                                     <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{checklistDone}<span className="text-base text-slate-400 font-bold">/{checklistTotal}</span></p>
-                                    <p className="text-xs text-slate-500 font-medium mt-1">
+                                    <p className="text-xs mt-1">
                                         {smartChecklistItems.filter(i => i.isLate && !i.isDone).length > 0
-                                            ? <span className="text-rose-600">⚠ {smartChecklistItems.filter(i => i.isLate && !i.isDone).length} באיחור</span>
-                                            : <span className="text-emerald-600">{checklistProgress.toFixed(0)}% הושלמו</span>}
+                                            ? <span className="text-rose-600">{smartChecklistItems.filter(i => i.isLate && !i.isDone).length} באיחור</span>
+                                            : <span className="text-slate-400">{checklistProgress.toFixed(0)}% הושלמו</span>}
                                     </p>
                                 </div>
                                 {/* Wedding day readiness */}
                                 <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">🎉 מוכן ליום ה-X</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mb-2">מעטפות ליום החתונה</p>
                                     <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{runSheetSummary.readyCount}<span className="text-base text-slate-400 font-bold">/{runSheetSummary.totalCount}</span></p>
-                                    <p className="text-xs text-slate-500 font-medium mt-1">מעטפות מוכנות</p>
+                                    <p className="text-xs text-slate-400 mt-1">מוכנות לחלוקה</p>
                                 </div>
                             </div>
 
-                            {/* Money split — parents vs couple */}
-                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="bg-emerald-50/70 border border-emerald-200 rounded-3xl p-5">
-                                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-2">משפחות (אולם)</p>
-                                    <p className="text-xl font-extrabold text-emerald-700 tracking-tight">{formatMoney(Math.round(calculations.totalParentsGift))}</p>
-                                    <p className="text-[11px] text-emerald-600/80 font-medium mt-1">משפחת נדב {formatMoney(nadavMomGift)} · משפחת ליטל {formatMoney(Math.round(calculations.litalParentsGift))}</p>
-                                </div>
-                                <div className="bg-rose-50/70 border border-rose-200 rounded-3xl p-5">
-                                    <p className="text-[10px] font-bold text-rose-700 uppercase tracking-widest mb-2">עליכם לשלם</p>
-                                    <p className="text-xl font-extrabold text-rose-700 tracking-tight">{formatMoney(calculations.totalFixed + Math.round(calculations.venueOverage))}</p>
-                                    <p className="text-[11px] text-rose-600/80 font-medium mt-1">
-                                        ספקים {formatMoney(calculations.totalFixed)}
-                                        {calculations.venueOverage > 0 && <> · תוספת אולם {formatMoney(Math.round(calculations.venueOverage))}</>}
-                                    </p>
-                                </div>
-                                <div className="bg-sky-50/70 border border-sky-200 rounded-3xl p-5">
-                                    <p className="text-[10px] font-bold text-sky-700 uppercase tracking-widest mb-2">מהאורחים (משוער)</p>
-                                    <p className="text-xl font-extrabold text-sky-700 tracking-tight">{formatMoney(calculations.guestsIncome)}</p>
-                                    <p className="text-[11px] text-sky-600/80 font-medium mt-1">{guests} אורחים × {formatMoney(avgGift)}</p>
-                                </div>
-                            </div>
-
-                            {/* Smart Action Queue — what to do this week */}
-                            <div className="md:col-span-2 bg-gradient-to-br from-[#FFE5ED] via-white to-[#FFF5F8] rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(255,77,127,0.08)] border border-[#FFDEDE]">
+                            {/* This week — Smart Actions */}
+                            <div className="md:col-span-2 bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
                                 <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-[#FF4D7F] text-white p-2.5 rounded-2xl shadow-md shadow-pink-200">
-                                            <Wand2 size={22} strokeWidth={1.7} />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-[#FF4D7F] uppercase tracking-widest">פעולות חכמות</p>
-                                            <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">מה לעשות השבוע</h2>
-                                        </div>
-                                    </div>
-                                    <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-[#FFDEDE] text-[#FF4D7F]">
-                                        {smartActions.length === 0 ? 'הכול תחת שליטה ✨' : `${smartActions.length} פתוחות`}
+                                    <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">השבוע הקרוב</h2>
+                                    <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#FFE5ED] text-[#FF4D7F]">
+                                        {smartActions.length === 0 ? 'הכול תחת שליטה' : `${smartActions.length} פתוחות`}
                                     </div>
                                 </div>
                                 {smartActions.length === 0 ? (
@@ -1215,59 +1147,6 @@ export default function WeddingSimulator() {
                                         })}
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Visual Budget Progress Bar */}
-                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white md:col-span-2">
-                                <div className="flex justify-between items-end mb-6">
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">סקירה תקציבית</p>
-                                        <p className="font-bold text-[#1F1A1A] text-2xl tracking-tight">מדד כיסוי ההשקעה</p>
-                                    </div>
-                                    <div className="px-4 py-1.5 rounded-xl text-sm font-bold bg-[#F8F8F8] border border-slate-200 text-slate-700">
-                                        {calculations.incomeProgress >= 100 ? 'החזרתם 100% ויותר! 🎉' : `מכוסה: ${calculations.incomeProgress.toFixed(1)}%`}
-                                    </div>
-                                </div>
-                                <div className="h-8 w-full bg-slate-100/80 rounded-full overflow-hidden flex relative shadow-inner border border-slate-200/50">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${calculations.incomeProgress}%` }}
-                                        transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                                        className={`h-full ${calculations.netBalance >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-[#FF4D7F] to-pink-500'}`}
-                                    ></motion.div>
-                                    <div className="absolute top-0 bottom-0 border-l-2 border-slate-900/20 border-dashed z-10" style={{ left: '0%' }}></div>
-                                </div>
-                                <div className="flex justify-between text-sm font-medium text-slate-400 mt-3 px-1">
-                                    <span>{formatMoney(0)}</span>
-                                    <span>יעד התאפסות: <span className="text-slate-700">{formatMoney(calculations.totalExpenses)}</span></span>
-                                </div>
-                            </div>
-
-                            {/* Smart Insights Block */}
-                            <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white h-full flex flex-col justify-between">
-                                <div className="mb-6">
-                                    <p className="text-xs font-semibold text-[#FF4D7F] uppercase tracking-widest mb-1">תובנות הזהב</p>
-                                    <h2 className="text-xl font-bold text-[#1F1A1A] flex items-center gap-2">
-                                        כדי לא להפסיד שקל
-                                    </h2>
-                                </div>
-                                <div className="bg-[#F8F8F8] p-6 rounded-2xl border border-slate-100">
-                                    <p className="text-slate-500 text-sm font-semibold mb-1 uppercase tracking-wider">הממוצע הנדרש:</p>
-                                    <p className="text-5xl font-bold text-[#FF4D7F] tracking-tighter mb-4">{formatMoney(calculations.breakEvenAvgGift)} <span className="text-base font-semibold text-slate-400">לאורח</span></p>
-                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500">
-                                        <span>סיוע הורים:</span>
-                                        <span className="text-[#333333]">{(calculations.totalParentsGift).toLocaleString()} ₪</span>
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center mt-4">
-                                    <div>
-                                        <p className="text-xs text-slate-400 font-semibold mb-1 uppercase tracking-wider">עלות כוללת לאורח</p>
-                                        <p className="text-2xl font-bold text-[#FF4D7F]">{formatMoney(calculations.costPerGuest)}</p>
-                                    </div>
-                                    <div className="bg-[#F8F8F8] p-3 rounded-xl border border-slate-100">
-                                        <PieChart className="text-slate-400" size={24} strokeWidth={1.5} />
-                                    </div>
-                                </div>
                             </div>
 
                         </motion.div>
