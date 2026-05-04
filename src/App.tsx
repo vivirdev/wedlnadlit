@@ -154,6 +154,7 @@ export default function WeddingSimulator() {
 
     // Navigation State
     const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'runsheet' | 'settings'>('home');
+    const [settingsSubTab, setSettingsSubTab] = useState<'guests' | 'vendors' | 'cashflow'>('guests');
 
     // Wedding Date Setup
     const weddingDate = new Date('2026-06-23');
@@ -1193,8 +1194,32 @@ export default function WeddingSimulator() {
                         </motion.div>
                     )}
 
-                    {/* SETTINGS: VENUE & CPI */}
+                    {/* Settings sub-tabs */}
                     {activeTab === 'settings' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="md:col-span-2 bg-white rounded-2xl p-1.5 shadow-[0_4px_16px_rgb(0,0,0,0.04)] border border-slate-100 flex gap-1"
+                            dir="rtl"
+                        >
+                            {([
+                                { id: 'guests', label: 'אורחים והכנסות' },
+                                { id: 'vendors', label: 'ספקים' },
+                                { id: 'cashflow', label: 'תזרים ותקציב' },
+                            ] as const).map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setSettingsSubTab(tab.id)}
+                                    className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${settingsSubTab === tab.id ? 'bg-[#FF4D7F] text-white shadow-sm' : 'text-slate-500 hover:text-[#1F1A1A] hover:bg-slate-50'}`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </motion.div>
+                    )}
+
+                    {/* SETTINGS: VENUE & CPI */}
+                    {activeTab === 'settings' && settingsSubTab === 'cashflow' && (
                         <motion.div
                             key="budget-venue"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1271,7 +1296,7 @@ export default function WeddingSimulator() {
                     )}
 
                     {/* SETTINGS: INCOME & GUESTS */}
-                    {activeTab === 'settings' && (
+                    {activeTab === 'settings' && settingsSubTab === 'guests' && (
                         <motion.div
                             key="income"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1505,7 +1530,7 @@ export default function WeddingSimulator() {
                     )}
 
                     {/* SETTINGS: EXPENSES (vendors CRUD) */}
-                    {activeTab === 'settings' && (
+                    {activeTab === 'settings' && settingsSubTab === 'vendors' && (
                         <motion.div
                             key="expenses"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -1847,7 +1872,7 @@ export default function WeddingSimulator() {
                         </motion.div>
                     )}
                     {/* SETTINGS: CASH FLOW */}
-                    {activeTab === 'settings' && (
+                    {activeTab === 'settings' && settingsSubTab === 'cashflow' && (
                         <motion.div
                             key="cashflow"
                             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
