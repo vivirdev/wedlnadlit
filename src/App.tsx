@@ -561,7 +561,23 @@ export default function WeddingSimulator() {
     const checklistDone = smartChecklistItems.filter(i => i.isDone).length;
     const checklistTotal = smartChecklistItems.length;
     const checklistProgress = checklistTotal > 0 ? (checklistDone / checklistTotal) * 100 : 0;
-    const checklistCategories = [...new Set(smartChecklistItems.map(i => i.category))];
+    const categoryOffsets: Record<string, number> = {
+        'שלב ראשון': 360,
+        'בחירת ספקים': 270,
+        'בחירת ספקים שלב 2': 180,
+        'שלושה חודשים לפני החתונה': 90,
+        'חודש לפני החתונה': 30,
+        'שבועיים לפני': 14,
+        'שבוע לפני': 7,
+    };
+    const checklistCategories = [...new Set(smartChecklistItems.map(i => i.category))]
+        .filter(category => {
+            const offset = categoryOffsets[category];
+            const isPast = offset !== undefined && daysLeft < offset;
+            const items = smartChecklistItems.filter(i => i.category === category);
+            const allDone = items.length > 0 && items.every(i => i.isDone);
+            return !(isPast && allDone);
+        });
 
     // Smart action queue — surfaces what to do *this week* across the app
     type SmartAction = {
