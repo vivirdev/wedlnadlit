@@ -1063,12 +1063,12 @@ export default function WeddingSimulator() {
                         >
 
                             {/* Countdown hero — single focal point */}
-                            <div className="md:col-span-2 bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] rounded-[2rem] p-8 text-white shadow-[0_12px_40px_rgba(255,77,127,0.25)] relative overflow-hidden">
-                                <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-2">עד החתונה</p>
-                                <div className="flex items-baseline gap-3">
-                                    <p className="text-6xl font-extrabold tracking-tight">{daysLeft}</p>
-                                    <p className="text-lg text-white/90 font-medium">ימים · 23.6.26</p>
+                            <div className="md:col-span-2 bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] rounded-2xl px-5 py-4 text-white shadow-[0_8px_24px_rgba(255,77,127,0.2)] relative overflow-hidden flex items-center justify-between">
+                                <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">עד החתונה</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-3xl font-extrabold tracking-tight">{daysLeft}</p>
+                                    <p className="text-xs text-white/90 font-medium">ימים · 23.6.26</p>
                                 </div>
                             </div>
 
