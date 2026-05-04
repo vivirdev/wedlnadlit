@@ -959,6 +959,30 @@ export default function WeddingSimulator() {
                     </p>
                 </motion.div>
 
+                {/* Always-visible summary strip — totals across all tabs */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white grid grid-cols-3 divide-x divide-slate-100 overflow-hidden"
+                    dir="rtl"
+                >
+                    <div className="p-4 text-center">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">הוצאות</p>
+                        <p className="text-lg md:text-xl font-extrabold text-[#1F1A1A] tracking-tight">{formatMoney(calculations.totalExpenses)}</p>
+                    </div>
+                    <div className="p-4 text-center">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">הכנסה מאורחים</p>
+                        <p className="text-lg md:text-xl font-extrabold text-[#1F1A1A] tracking-tight">{formatMoney(calculations.guestsIncome)}</p>
+                    </div>
+                    <div className="p-4 text-center">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">מאזן צפוי</p>
+                        <p className={`text-lg md:text-xl font-extrabold tracking-tight ${calculations.netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {calculations.netBalance >= 0 ? '+' : ''}{formatMoney(calculations.netBalance)}
+                        </p>
+                    </div>
+                </motion.div>
+
                 {/* Main tabs (3) + settings gear */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1032,16 +1056,8 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
-                            {/* Status row — 3 simple cards */}
-                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Balance */}
-                                <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                    <p className="text-[11px] font-semibold text-slate-500 mb-2">מאזן צפוי</p>
-                                    <p className={`text-2xl font-extrabold tracking-tight ${calculations.netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                        {calculations.netBalance >= 0 ? '+' : ''}{formatMoney(calculations.netBalance)}
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">אחרי הוצאות וצפי מתנות</p>
-                                </div>
+                            {/* Status row — 2 simple cards */}
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Tasks */}
                                 <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
                                     <p className="text-[11px] font-semibold text-slate-500 mb-2">משימות</p>
