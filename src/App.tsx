@@ -1104,6 +1104,59 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
+                            {/* Advanced KPI grid — vendors closed, paid, income coverage, cost per guest */}
+                            {(() => {
+                                const vendorsTotal = fixedExpenses.length;
+                                const vendorsClosed = fixedExpenses.filter(e => e.paid || Number(e.advance) > 0).length;
+                                const vendorsPct = vendorsTotal ? (vendorsClosed / vendorsTotal) * 100 : 0;
+                                const paidPct = calculations.totalExpenses ? (calculations.totalAdvancesPaid / calculations.totalExpenses) * 100 : 0;
+                                const coverPct = calculations.incomeProgress;
+                                return (
+                                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ספקים סגורים</p>
+                                                <Receipt size={13} className="text-slate-300" strokeWidth={1.7} />
+                                            </div>
+                                            <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{vendorsClosed}<span className="text-sm text-slate-400 font-bold">/{vendorsTotal}</span></p>
+                                            <div className="mt-2.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${vendorsPct}%` }} />
+                                            </div>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">שולם בפועל</p>
+                                                <Wallet size={13} className="text-slate-300" strokeWidth={1.7} />
+                                            </div>
+                                            <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{paidPct.toFixed(0)}%</p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5 truncate">{formatMoney(calculations.totalAdvancesPaid)} / {formatMoney(calculations.totalExpenses)}</p>
+                                            <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#FF4D7F] rounded-full transition-all" style={{ width: `${Math.min(paidPct, 100)}%` }} />
+                                            </div>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">כיסוי הכנסות</p>
+                                                <ArrowUpRight size={13} className="text-slate-300" strokeWidth={1.7} />
+                                            </div>
+                                            <p className={`text-2xl font-extrabold tracking-tight ${coverPct >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{coverPct.toFixed(0)}%</p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5">הכנסות מכסות הוצאות</p>
+                                            <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full transition-all ${coverPct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(coverPct, 100)}%` }} />
+                                            </div>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">עלות לאורח</p>
+                                                <Users size={13} className="text-slate-300" strokeWidth={1.7} />
+                                            </div>
+                                            <p className="text-2xl font-extrabold text-[#1F1A1A] tracking-tight">{formatMoney(Math.round(calculations.costPerGuest))}</p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5 truncate">לאיזון: {formatMoney(Math.round(calculations.breakEvenAvgGift))}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             {/* Status row — 2 simple cards */}
                             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Tasks */}
