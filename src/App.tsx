@@ -1157,6 +1157,53 @@ export default function WeddingSimulator() {
                                 );
                             })()}
 
+                            {/* Payer breakdown — who paid advances so far */}
+                            {(() => {
+                                const nadav = advancePayerBreakdown['נדב'];
+                                const lital = advancePayerBreakdown['ליטל'];
+                                const shared = advancePayerBreakdown['משותף'];
+                                const unassigned = advancePayerBreakdown['לא משויך'];
+                                const totalPaid = nadav + lital + shared + unassigned;
+                                if (totalPaid === 0) return null;
+                                const seg = (v: number) => totalPaid ? (v / totalPaid) * 100 : 0;
+                                return (
+                                    <div className="md:col-span-2 bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">מי שילם עד עכשיו</p>
+                                            <p className="text-xs font-semibold text-slate-500">סה"כ {formatMoney(totalPaid)}</p>
+                                        </div>
+                                        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden flex" dir="ltr">
+                                            {nadav > 0 && <div className="h-full bg-sky-500" style={{ width: `${seg(nadav)}%` }} title={`נדב: ${formatMoney(nadav)}`} />}
+                                            {lital > 0 && <div className="h-full bg-pink-500" style={{ width: `${seg(lital)}%` }} title={`ליטל: ${formatMoney(lital)}`} />}
+                                            {shared > 0 && <div className="h-full bg-violet-500" style={{ width: `${seg(shared)}%` }} title={`משותף: ${formatMoney(shared)}`} />}
+                                            {unassigned > 0 && <div className="h-full bg-slate-300" style={{ width: `${seg(unassigned)}%` }} title={`לא משויך: ${formatMoney(unassigned)}`} />}
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                                            {nadav > 0 && (
+                                                <span className="flex items-center gap-1.5 text-slate-600">
+                                                    <span className="w-2 h-2 rounded-full bg-sky-500" />נדב <span className="font-bold text-[#1F1A1A]">{formatMoney(nadav)}</span>
+                                                </span>
+                                            )}
+                                            {lital > 0 && (
+                                                <span className="flex items-center gap-1.5 text-slate-600">
+                                                    <span className="w-2 h-2 rounded-full bg-pink-500" />ליטל <span className="font-bold text-[#1F1A1A]">{formatMoney(lital)}</span>
+                                                </span>
+                                            )}
+                                            {shared > 0 && (
+                                                <span className="flex items-center gap-1.5 text-slate-600">
+                                                    <span className="w-2 h-2 rounded-full bg-violet-500" />משותף <span className="font-bold text-[#1F1A1A]">{formatMoney(shared)}</span>
+                                                </span>
+                                            )}
+                                            {unassigned > 0 && (
+                                                <span className="flex items-center gap-1.5 text-slate-500">
+                                                    <span className="w-2 h-2 rounded-full bg-slate-300" />לא משויך <span className="font-bold text-slate-600">{formatMoney(unassigned)}</span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             {/* Status row — 2 simple cards */}
                             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Tasks */}
