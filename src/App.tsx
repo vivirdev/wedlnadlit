@@ -1709,16 +1709,32 @@ export default function WeddingSimulator() {
                                                             </div>
                                                         </div>
                                                         <div className="col-span-3">
-                                                            <div className="relative group">
-                                                                <input
-                                                                    type="number"
-                                                                    value={expense.advance}
-                                                                    onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
-                                                                    className={`w-full pl-8 pr-4 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
-                                                                        }`}
-                                                                    readOnly={expense.paid}
-                                                                />
-                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="relative group flex-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={expense.advance}
+                                                                        onChange={(e) => updateExpense(expense.id, 'advance', e.target.value)}
+                                                                        className={`w-full pl-8 pr-3 py-2.5 bg-[#FFE5ED] border border-[#FFDEDE] rounded-xl focus:ring-2 focus:ring-[#FF4D7F] focus:bg-[#FFE5ED]/50 text-base font-semibold text-left text-[#333333] outline-none transition-all shadow-inner group-hover:border-[#FFDEDE] ${expense.paid ? 'opacity-70 pointer-events-none' : ''
+                                                                            }`}
+                                                                        readOnly={expense.paid}
+                                                                    />
+                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF4D7F] font-semibold text-sm">₪</span>
+                                                                </div>
+                                                                {Number(expense.advance) > 0 && (
+                                                                    <select
+                                                                        value={expense.advance_paid_by || ''}
+                                                                        onChange={(e) => updateExpense(expense.id, 'advance_paid_by', e.target.value)}
+                                                                        disabled={expense.paid}
+                                                                        title="מי שילם את המקדמה"
+                                                                        className={`px-2 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#FF4D7F] hover:border-[#FFDEDE] cursor-pointer ${expense.paid ? 'opacity-70 pointer-events-none' : ''}`}
+                                                                    >
+                                                                        <option value="">מי?</option>
+                                                                        {ADVANCE_PAYERS.map(p => (
+                                                                            <option key={p} value={p}>{p}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="col-span-1 flex justify-end items-center gap-0.5">
@@ -1743,24 +1759,6 @@ export default function WeddingSimulator() {
                                                                 exit={{ height: 0, opacity: 0 }}
                                                                 className="pt-3 border-t border-slate-100 overflow-hidden bg-[#F8F8F8] rounded-b-xl -mx-3.5 -mb-3.5 px-4 pb-4 mt-2 flex flex-col gap-3"
                                                             >
-                                                                {Number(expense.advance) > 0 && (
-                                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                                        <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">מי שילם את המקדמה:</span>
-                                                                        {ADVANCE_PAYERS.map(payer => {
-                                                                            const isActive = expense.advance_paid_by === payer;
-                                                                            return (
-                                                                                <button
-                                                                                    key={payer}
-                                                                                    type="button"
-                                                                                    onClick={() => updateExpense(expense.id, 'advance_paid_by', isActive ? '' : payer)}
-                                                                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isActive ? 'bg-[#FF4D7F] border-[#FF4D7F] text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-[#FFDEDE] hover:text-[#FF4D7F]'}`}
-                                                                                >
-                                                                                    {payer}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                )}
                                                                 <div className="flex flex-col sm:flex-row items-center gap-3">
                                                                     <div className="flex-1 w-full flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#FF4D7F] focus-within:border-[#FF4D7F] transition-all">
                                                                         <span className="bg-slate-100/50 text-slate-700 text-xs font-semibold px-3 py-2.5 border-l border-slate-100 whitespace-nowrap">איש קשר:</span>
