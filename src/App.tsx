@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, Heart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown } from 'lucide-react';
+import { Users, Plus, Trash2, Heart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown, Sparkles, Loader2, Search } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -49,6 +49,67 @@ interface ChecklistItem {
     done: boolean;
     category: string;
 }
+
+type GuestSide = 'חתן' | 'כלה' | 'משותף';
+type GuestCategory =
+    | 'family_close'
+    | 'family_extended'
+    | 'friends_close'
+    | 'friends'
+    | 'work'
+    | 'parents_friends';
+type GuestConfidence = 'high' | 'medium' | 'low';
+type GuestRsvp = 'confirmed' | 'doubtful' | 'declined';
+
+interface Guest {
+    id: number;
+    name: string;
+    note?: string | null;
+    side?: GuestSide | null;
+    category?: GuestCategory | null;
+    plus_one: boolean;
+    attendance_prob: number;
+    gift_low: number;
+    gift_realistic: number;
+    gift_high: number;
+    confidence?: GuestConfidence | null;
+    ai_classified_at?: string | null;
+    manually_edited: boolean;
+    rsvp_status?: GuestRsvp | null;
+}
+
+const GUEST_CATEGORIES: { id: GuestCategory; label: string; emoji: string; color: string }[] = [
+    { id: 'family_close',     label: 'משפחה קרובה',         emoji: '👨\u200D👩\u200D👧', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+    { id: 'family_extended',  label: 'משפחה מורחבת',         emoji: '🧑\u200D🤝\u200D🧑', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { id: 'friends_close',    label: 'חברים קרובים',         emoji: '💞', color: 'bg-pink-100 text-pink-700 border-pink-200' },
+    { id: 'friends',          label: 'חברים',               emoji: '🥂', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { id: 'work',             label: 'עבודה',               emoji: '💼', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    { id: 'parents_friends',  label: 'חברים של ההורים',      emoji: '🎩', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+];
+
+const GUEST_SIDES: GuestSide[] = ['חתן', 'כלה', 'משותף'];
+
+// Per-category defaults — applied when user picks a category manually,
+// so attendance % and gift range snap to that category's typical values.
+// Mirrors the table in the Edge Function's CLASSIFY_SYSTEM prompt.
+const CATEGORY_DEFAULTS: Record<GuestCategory, { attendance_prob: number; gift_low: number; gift_realistic: number; gift_high: number }> = {
+    family_close:    { attendance_prob: 1.00, gift_low: 700, gift_realistic: 900, gift_high: 1500 },
+    family_extended: { attendance_prob: 0.90, gift_low: 450, gift_realistic: 550, gift_high: 800 },
+    friends_close:   { attendance_prob: 0.95, gift_low: 500, gift_realistic: 600, gift_high: 900 },
+    friends:         { attendance_prob: 0.85, gift_low: 400, gift_realistic: 500, gift_high: 700 },
+    work:            { attendance_prob: 0.65, gift_low: 400, gift_realistic: 450, gift_high: 600 },
+    parents_friends: { attendance_prob: 0.80, gift_low: 500, gift_realistic: 600, gift_high: 900 },
+};
+
+// Couple defaults — used when toggling plus_one ON so amounts snap to couple norms (couple floor = 800).
+const CATEGORY_DEFAULTS_COUPLE: Record<GuestCategory, { gift_low: number; gift_realistic: number; gift_high: number }> = {
+    family_close:    { gift_low: 1400, gift_realistic: 1800, gift_high: 3000 },
+    family_extended: { gift_low: 900,  gift_realistic: 1100, gift_high: 1500 },
+    friends_close:   { gift_low: 1100, gift_realistic: 1300, gift_high: 1800 },
+    friends:         { gift_low: 900,  gift_realistic: 1000, gift_high: 1300 },
+    work:            { gift_low: 800,  gift_realistic: 900,  gift_high: 1100 },
+    parents_friends: { gift_low: 1000, gift_realistic: 1200, gift_high: 1600 },
+};
 
 interface CpiData {
     baseCpi: number;       // CPI at contract signing (Jan 2026)
@@ -153,7 +214,7 @@ export default function WeddingSimulator() {
     };
 
     // Navigation State
-    const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'runsheet' | 'settings'>('home');
+    const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'runsheet' | 'advisor' | 'settings'>('home');
     const [settingsSubTab, setSettingsSubTab] = useState<'guests' | 'vendors' | 'cashflow'>('guests');
 
     // Wedding Date Setup
@@ -208,6 +269,30 @@ export default function WeddingSimulator() {
     const [newChecklistText, setNewChecklistText] = useState('');
     const [fixedExpenses, setFixedExpenses] = useState<Expense[]>([]);
     const [runSheetEvents, setRunSheetEvents] = useState<RunSheetEvent[]>([]);
+    const [guestList, setGuestList] = useState<Guest[]>([]);
+    const [newGuestName, setNewGuestName] = useState('');
+    const [newGuestNote, setNewGuestNote] = useState('');
+    const [classifyingGuest, setClassifyingGuest] = useState(false);
+    const [classifyError, setClassifyError] = useState<string | null>(null);
+    const [importOpen, setImportOpen] = useState(false);
+    const [importText, setImportText] = useState('');
+    const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
+    const [importError, setImportError] = useState<string | null>(null);
+
+    // Guest list view controls — search, side/category filters, group collapse, per-row expand.
+    const [guestSearch, setGuestSearch] = useState('');
+    const [guestSideFilter, setGuestSideFilter] = useState<GuestSide | 'all'>('all');
+    const [guestCategoryFilter, setGuestCategoryFilter] = useState<GuestCategory | 'all' | 'unclassified'>('all');
+    const [collapsedGuestGroups, setCollapsedGuestGroups] = useState<Set<string>>(new Set());
+    const [expandedGuestId, setExpandedGuestId] = useState<number | null>(null);
+
+    const toggleGuestGroupCollapsed = (key: string) => {
+        setCollapsedGuestGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    };
 
     const [newExpenseName, setNewExpenseName] = useState('');
     const [newExpenseAmount, setNewExpenseAmount] = useState('');
@@ -224,10 +309,11 @@ export default function WeddingSimulator() {
 
     const loadData = async (id: number) => {
         try {
-            const [configRes, expensesRes, checklistRes] = await Promise.all([
+            const [configRes, expensesRes, checklistRes, guestsRes] = await Promise.all([
                 supabase.from('wedding_config').select('*').eq('id', id).single(),
                 supabase.from('expenses').select('*').eq('config_id', id).order('id'),
-                supabase.from('checklist').select('*').eq('config_id', id).order('id')
+                supabase.from('checklist').select('*').eq('config_id', id).order('id'),
+                supabase.from('guests').select('*').eq('config_id', id).order('id'),
             ]);
             if (configRes.data) {
                 setInvitedGuests(configRes.data.invited_guests);
@@ -244,6 +330,7 @@ export default function WeddingSimulator() {
                 }
             }
             if (expensesRes.data) setFixedExpenses(expensesRes.data);
+            if (guestsRes.data) setGuestList(guestsRes.data);
 
             if (checklistRes.data && checklistRes.data.length > 0) {
                 setChecklistItems(checklistRes.data);
@@ -318,6 +405,7 @@ export default function WeddingSimulator() {
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wedding_config', filter: `id=eq.${configId}` }, () => loadData(configId))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `config_id=eq.${configId}` }, () => loadData(configId))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `config_id=eq.${configId}` }, () => loadData(configId))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'guests', filter: `config_id=eq.${configId}` }, () => loadData(configId))
                 .subscribe();
 
             return () => {
@@ -483,6 +571,92 @@ export default function WeddingSimulator() {
             scenarios, expenseCategories, totalFixedAdvances, remainingFixedPayments,
         };
     }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent, cpiData]);
+
+    // Aggregated forecast from the per-guest list (replaces flat invitedGuests × avgGift when list is non-empty)
+    const guestForecast = useMemo(() => {
+        const totalGuests = guestList.length;
+        let invitedHeads = 0;
+        let expectedHeads = 0;
+        let incomeLow = 0;
+        let incomeMid = 0;
+        let incomeHigh = 0;
+
+        const byCategory = new Map<GuestCategory, { count: number; expected: number; income: number }>();
+
+        for (const g of guestList) {
+            const heads = 1 + (g.plus_one ? 1 : 0);
+            const prob = Math.max(0, Math.min(1, Number(g.attendance_prob ?? 0)));
+            invitedHeads += heads;
+            expectedHeads += heads * prob;
+            // Gift is the envelope total from this entry (couple = single envelope), not per-head.
+            incomeLow  += prob * Number(g.gift_low ?? 0);
+            incomeMid  += prob * Number(g.gift_realistic ?? 0);
+            incomeHigh += prob * Number(g.gift_high ?? 0);
+
+            if (g.category) {
+                const cur = byCategory.get(g.category) ?? { count: 0, expected: 0, income: 0 };
+                cur.count += heads;
+                cur.expected += heads * prob;
+                cur.income += prob * Number(g.gift_realistic ?? 0);
+                byCategory.set(g.category, cur);
+            }
+        }
+
+        const lowConfidenceCount = guestList.filter(g => g.confidence === 'low').length;
+        const unclassifiedCount = guestList.filter(g => !g.category).length;
+
+        return {
+            totalGuests,
+            invitedHeads,
+            expectedHeads,
+            incomeLow: Math.round(incomeLow),
+            incomeMid: Math.round(incomeMid),
+            incomeHigh: Math.round(incomeHigh),
+            byCategory,
+            lowConfidenceCount,
+            unclassifiedCount,
+        };
+    }, [guestList]);
+
+    const formatHeads = (n: number) => String(Math.round(n));
+
+    // Filtered + grouped guest list for the AI advisor view.
+    // Order follows GUEST_CATEGORIES, with "ללא קטגוריה" appended when unclassified guests exist.
+    type GuestGroupKey = GuestCategory | '_unclassified';
+    type GuestGroupStat = { guests: Guest[]; heads: number; expectedHeads: number; expectedIncome: number };
+    const groupedGuests = useMemo(() => {
+        const q = guestSearch.trim().toLowerCase();
+        const filtered = guestList.filter(g => {
+            if (q) {
+                const hay = `${g.name} ${g.note ?? ''}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            if (guestSideFilter !== 'all' && g.side !== guestSideFilter) return false;
+            if (guestCategoryFilter === 'unclassified' && g.category) return false;
+            if (guestCategoryFilter !== 'all' && guestCategoryFilter !== 'unclassified' && g.category !== guestCategoryFilter) return false;
+            return true;
+        });
+        const groups = new Map<GuestGroupKey, GuestGroupStat>();
+        for (const g of filtered) {
+            const key: GuestGroupKey = (g.category ?? '_unclassified') as GuestGroupKey;
+            const cur = groups.get(key) ?? { guests: [], heads: 0, expectedHeads: 0, expectedIncome: 0 };
+            const heads = 1 + (g.plus_one ? 1 : 0);
+            const prob = Math.max(0, Math.min(1, Number(g.attendance_prob ?? 0)));
+            cur.guests.push(g);
+            cur.heads += heads;
+            cur.expectedHeads += heads * prob;
+            cur.expectedIncome += prob * Number(g.gift_realistic ?? 0);
+            groups.set(key, cur);
+        }
+        const ordered: Array<{ key: GuestGroupKey; label: string; emoji: string; color: string; data: GuestGroupStat }> = [];
+        for (const cat of GUEST_CATEGORIES) {
+            const data = groups.get(cat.id);
+            if (data) ordered.push({ key: cat.id, label: cat.label, emoji: cat.emoji, color: cat.color, data });
+        }
+        const un = groups.get('_unclassified');
+        if (un) ordered.push({ key: '_unclassified', label: 'ללא קטגוריה', emoji: '❓', color: 'bg-slate-100 text-slate-700 border-slate-200', data: un });
+        return { ordered, totalFiltered: filtered.length };
+    }, [guestList, guestSearch, guestSideFilter, guestCategoryFilter]);
 
     // Checklist calculations
     const smartChecklistItems = useMemo(() => {
@@ -811,6 +985,205 @@ export default function WeddingSimulator() {
         });
     };
 
+    const classifyAndAddGuest = async () => {
+        if (!configId || !newGuestName.trim()) return;
+        setClassifyingGuest(true);
+        setClassifyError(null);
+        try {
+            const { data, error } = await supabase.functions.invoke('wedding-advisor', {
+                body: { action: 'classify', name: newGuestName.trim(), note: newGuestNote.trim() || null },
+            });
+            if (error) throw error;
+            const c = (data as { classification?: Record<string, unknown> })?.classification;
+            if (!c) throw new Error('המודל החזיר תשובה ריקה');
+
+            const payload = {
+                config_id: configId,
+                name: newGuestName.trim(),
+                note: newGuestNote.trim() || null,
+                side: (c.side as GuestSide) ?? null,
+                category: (c.category as GuestCategory) ?? null,
+                plus_one: Boolean(c.plus_one),
+                attendance_prob: Number(c.attendance_prob ?? 0.85),
+                gift_low: Math.max(400, Number(c.gift_low ?? 400)),
+                gift_realistic: Math.max(400, Number(c.gift_realistic ?? 450)),
+                gift_high: Math.max(400, Number(c.gift_high ?? 600)),
+                confidence: (c.confidence as GuestConfidence) ?? 'medium',
+                ai_classified_at: new Date().toISOString(),
+                manually_edited: false,
+            };
+            await supabase.from('guests').insert(payload);
+            setNewGuestName('');
+            setNewGuestNote('');
+            await loadData(configId);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setClassifyError(msg);
+        } finally {
+            setClassifyingGuest(false);
+        }
+    };
+
+    const addGuestManual = async () => {
+        if (!configId || !newGuestName.trim()) return;
+        await supabase.from('guests').insert({
+            config_id: configId,
+            name: newGuestName.trim(),
+            note: newGuestNote.trim() || null,
+            category: 'friends',
+            side: 'משותף',
+            attendance_prob: 0.85,
+            gift_low: 400,
+            gift_realistic: 450,
+            gift_high: 600,
+            manually_edited: true,
+        });
+        setNewGuestName('');
+        setNewGuestNote('');
+        await loadData(configId);
+    };
+
+    const updateGuest = async (id: number, patch: Partial<Guest>) => {
+        if (!configId) return;
+        setGuestList(prev => prev.map(g => g.id === id ? { ...g, ...patch, manually_edited: true } : g));
+        await supabase.from('guests').update({ ...patch, manually_edited: true }).eq('id', id);
+    };
+
+    const deleteGuest = async (id: number) => {
+        if (!configId) return;
+        setGuestList(prev => prev.filter(g => g.id !== id));
+        await supabase.from('guests').delete().eq('id', id);
+    };
+
+    // RSVP toggle. Sets rsvp_status (intent) and snaps attendance_prob to a matching number.
+    // null  → restore category default (or 0.85 fallback) so the forecast goes back to "auto".
+    const setGuestRsvp = (g: Guest, status: GuestRsvp | null) => {
+        let prob: number;
+        if (status === 'confirmed') prob = 1.0;
+        else if (status === 'doubtful') prob = 0.5;
+        else if (status === 'declined') prob = 0.0;
+        else prob = g.category ? CATEGORY_DEFAULTS[g.category].attendance_prob : 0.85;
+        return updateGuest(g.id, { rsvp_status: status, attendance_prob: prob });
+    };
+
+    // Bulk import — accepts free-form text where each line is one guest.
+    // Splits on tab/comma so Excel paste, CSV, or "Name, note" all work.
+    const parseImportText = (text: string): Array<{ name: string; note: string }> => {
+        return text.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+                const parts = line.split(/\t|,/);
+                return {
+                    name: (parts[0] ?? '').trim(),
+                    note: parts.slice(1).join(', ').trim(),
+                };
+            })
+            .filter(row => row.name.length > 0);
+    };
+
+    const handleCsvFile = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = String(e.target?.result ?? '');
+            // Strip BOM if present
+            setImportText(text.replace(/^\uFEFF/, ''));
+        };
+        reader.readAsText(file, 'utf-8');
+    };
+
+    const importBulkManual = async () => {
+        if (!configId) return;
+        const rows = parseImportText(importText);
+        if (rows.length === 0) {
+            setImportError('לא זוהו שורות תקינות. כל שורה צריכה להתחיל בשם.');
+            return;
+        }
+        setImportError(null);
+        setImportProgress({ done: 0, total: rows.length });
+        const payload = rows.map(r => ({
+            config_id: configId,
+            name: r.name,
+            note: r.note || null,
+            category: 'friends' as GuestCategory,
+            side: 'משותף' as GuestSide,
+            attendance_prob: 0.85,
+            gift_low: 400,
+            gift_realistic: 450,
+            gift_high: 600,
+            manually_edited: true,
+        }));
+        await supabase.from('guests').insert(payload);
+        setImportProgress({ done: rows.length, total: rows.length });
+        setImportText('');
+        setImportOpen(false);
+        await loadData(configId);
+        setTimeout(() => setImportProgress(null), 1500);
+    };
+
+    const importBulkWithAI = async () => {
+        if (!configId) return;
+        const rows = parseImportText(importText);
+        if (rows.length === 0) {
+            setImportError('לא זוהו שורות תקינות. כל שורה צריכה להתחיל בשם.');
+            return;
+        }
+        setImportError(null);
+        setImportProgress({ done: 0, total: rows.length });
+
+        const BATCH_SIZE = 5;
+        let done = 0;
+        const failures: string[] = [];
+
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+            const batch = rows.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(async (row) => {
+                try {
+                    const { data, error } = await supabase.functions.invoke('wedding-advisor', {
+                        body: { action: 'classify', name: row.name, note: row.note || null },
+                    });
+                    if (error) throw error;
+                    const c = (data as { classification?: Record<string, unknown> })?.classification;
+                    if (!c) throw new Error('empty classification');
+                    return {
+                        config_id: configId,
+                        name: row.name,
+                        note: row.note || null,
+                        side: (c.side as GuestSide) ?? null,
+                        category: (c.category as GuestCategory) ?? null,
+                        plus_one: Boolean(c.plus_one),
+                        attendance_prob: Number(c.attendance_prob ?? 0.85),
+                        gift_low: Math.max(400, Number(c.gift_low ?? 400)),
+                        gift_realistic: Math.max(400, Number(c.gift_realistic ?? 450)),
+                        gift_high: Math.max(400, Number(c.gift_high ?? 600)),
+                        confidence: (c.confidence as GuestConfidence) ?? 'medium',
+                        ai_classified_at: new Date().toISOString(),
+                        manually_edited: false,
+                    };
+                } catch (e) {
+                    failures.push(`${row.name}: ${e instanceof Error ? e.message : String(e)}`);
+                    return null;
+                }
+            }));
+
+            const valid = results.filter((r): r is NonNullable<typeof r> => r !== null);
+            if (valid.length > 0) {
+                await supabase.from('guests').insert(valid);
+            }
+            done += batch.length;
+            setImportProgress({ done, total: rows.length });
+        }
+
+        if (failures.length > 0) {
+            setImportError(`${failures.length} כשלו: ${failures.slice(0, 3).join(' | ')}${failures.length > 3 ? '...' : ''}`);
+        } else {
+            setImportText('');
+            setImportOpen(false);
+        }
+        await loadData(configId);
+        setTimeout(() => setImportProgress(null), 2500);
+    };
+
     const persistRunSheet = (events: RunSheetEvent[]) => {
         setRunSheetEvents(events);
         if (configId) {
@@ -1011,6 +1384,7 @@ export default function WeddingSimulator() {
                         {([
                             { id: 'home', label: 'בית', Icon: Home },
                             { id: 'tasks', label: 'משימות', Icon: ListChecks },
+                            { id: 'advisor', label: 'יועץ AI', Icon: Sparkles },
                             { id: 'runsheet', label: 'יום ה-X', Icon: AlarmClock },
                         ] as const).map(({ id, label, Icon }) => (
                             <button
@@ -1315,70 +1689,82 @@ export default function WeddingSimulator() {
                             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
                             exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                            className="max-w-2xl mx-auto"
                         >
                             {/* CPI Indexation Card */}
-                            <div className={`rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border flex flex-col justify-between ${cpiData.changePercent > 0 ? 'bg-rose-50/30 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50/30 border-emerald-200' : 'bg-white border-white'}`}>
-                                <div>
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div>
-                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">הצמדה למדד</p>
-                                            <h2 className="text-xl font-bold text-[#1F1A1A]">מדד המחירים לצרכן</h2>
-                                        </div>
-                                        {cpiData.loading ? (
-                                            <RefreshCw size={16} className="text-slate-400 animate-spin" />
-                                        ) : (
-                                            <span className="text-[10px] font-medium text-slate-400 bg-white px-2.5 py-1 rounded-full border border-slate-200">עדכון: {cpiData.currentMonth}</span>
-                                        )}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">הצמדה למדד</p>
+                                        <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">מדד המחירים לצרכן</h2>
                                     </div>
-
                                     {cpiData.loading ? (
-                                        <div className="flex items-center gap-2 text-sm text-slate-500 bg-[#F8F8F8] p-6 rounded-2xl border border-slate-100">
-                                            <RefreshCw size={14} className="animate-spin" />
-                                            <span>טוען נתוני מדד...</span>
-                                        </div>
-                                    ) : cpiData.error ? (
-                                        <p className="text-sm text-rose-500 font-medium bg-rose-50 p-4 rounded-2xl">שגיאה: {cpiData.error}</p>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="bg-[#F8F8F8] p-5 rounded-2xl border border-slate-100 space-y-3">
-                                                <div className="flex justify-between text-sm items-center">
-                                                    <span className="text-slate-600 font-medium">מדד בסיס (ינואר 2026):</span>
-                                                    <span className="font-bold text-slate-700">{cpiData.baseCpi.toFixed(1)}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm items-center">
-                                                    <span className="text-slate-600 font-medium">מדד נוכחי ({cpiData.currentMonth}):</span>
-                                                    <span className="font-bold text-slate-700">{cpiData.currentCpi.toFixed(1)}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm items-center border-t border-slate-200/70 pt-3">
-                                                    <span className="text-slate-600 font-medium">שינוי במדד:</span>
-                                                    <span className={`font-bold flex items-center gap-1 ${cpiData.changePercent > 0 ? 'text-rose-600' : cpiData.changePercent < 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                        {cpiData.changePercent > 0 ? <ArrowUpRight size={14} /> : cpiData.changePercent < 0 ? <ArrowDownRight size={14} /> : null}
-                                                        {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {calculations.indexationCapped !== 0 && (
-                                                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
-                                                    <div className="flex justify-between text-sm items-center">
-                                                        <span className="text-slate-600 font-medium">סכום הצמדה ({Math.abs(cpiData.changePercent) > 1 ? 'מופחת 50%' : 'מלא'}):</span>
-                                                        <span className={`font-bold ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                            {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
-                                                        </span>
-                                                    </div>
-                                                    {Math.abs(cpiData.changePercent) > 1 && (
-                                                        <p className="text-[10px] text-slate-400 font-medium">* לפי סעיף 3.4 בהסכם, הפרשי ההצמדה מופחתים ב-50% כי עלו על 1%</p>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                                        <RefreshCw size={14} className="text-slate-400 animate-spin mt-2" />
+                                    ) : !cpiData.error && (
+                                        <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">{cpiData.currentMonth}</span>
                                     )}
                                 </div>
 
-                                <div className={`mt-6 p-5 rounded-2xl border ${cpiData.changePercent > 0 ? 'bg-rose-50 border-rose-200' : cpiData.changePercent < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-[#F8F8F8] border-slate-100'}`}>
-                                    <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">תשלום אחרון + הצמדה</p>
-                                    <span className="text-3xl font-bold text-[#FF4D7F]">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</span>
-                                </div>
+                                {cpiData.loading ? (
+                                    <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 p-6 rounded-2xl">
+                                        <RefreshCw size={14} className="animate-spin" />
+                                        <span>טוען נתוני מדד...</span>
+                                    </div>
+                                ) : cpiData.error ? (
+                                    <p className="text-sm text-rose-500 font-medium bg-rose-50 p-4 rounded-2xl">שגיאה: {cpiData.error}</p>
+                                ) : (
+                                    <>
+                                        {/* Hero: big change % */}
+                                        <div className={`rounded-[1.5rem] p-6 mb-3 border ${
+                                            cpiData.changePercent > 0 ? 'bg-gradient-to-br from-rose-50 to-rose-100/40 border-rose-100' :
+                                            cpiData.changePercent < 0 ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 border-emerald-100' :
+                                            'bg-slate-50 border-slate-100'
+                                        }`}>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">שינוי מאז חתימת החוזה</p>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className={`text-5xl font-extrabold tracking-tight ${
+                                                    cpiData.changePercent > 0 ? 'text-rose-700' :
+                                                    cpiData.changePercent < 0 ? 'text-emerald-700' : 'text-slate-700'
+                                                }`}>
+                                                    {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
+                                                </span>
+                                                {cpiData.changePercent > 0 ? (
+                                                    <ArrowUpRight size={26} className="text-rose-500" strokeWidth={2.5} />
+                                                ) : cpiData.changePercent < 0 ? (
+                                                    <ArrowDownRight size={26} className="text-emerald-500" strokeWidth={2.5} />
+                                                ) : null}
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-2 font-medium">
+                                                {cpiData.baseCpi.toFixed(1)} <span className="text-slate-300 mx-1">·</span> ינואר 2026
+                                                <span className="text-slate-300 mx-2">→</span>
+                                                {cpiData.currentCpi.toFixed(1)} <span className="text-slate-300 mx-1">·</span> {cpiData.currentMonth}
+                                            </p>
+                                        </div>
+
+                                        {/* Indexation amount (only if non-zero) */}
+                                        {calculations.indexationCapped !== 0 && (
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-3">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-sm text-slate-600 font-medium">
+                                                        סכום הצמדה {Math.abs(cpiData.changePercent) > 1 && <span className="text-[10px] text-slate-400">(מופחת 50%)</span>}
+                                                    </span>
+                                                    <span className={`font-bold text-base ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                        {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
+                                                    </span>
+                                                </div>
+                                                {Math.abs(cpiData.changePercent) > 1 && (
+                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 בהסכם — הפרשים מעל 1% מופחתים ב־50%</p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Final payment hero */}
+                                        <div className="bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] text-white rounded-[1.5rem] p-5 shadow-[0_12px_30px_rgba(255,77,127,0.25)]">
+                                            <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">תשלום אחרון + הצמדה</p>
+                                            <p className="text-3xl font-extrabold tracking-tight">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                         </motion.div>
@@ -1972,7 +2358,7 @@ export default function WeddingSimulator() {
                             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
                             exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
                         >
                             {/* CARD 1: Parents pay */}
                             <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col">
@@ -2069,15 +2455,15 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
-                            {/* CARD 3: What comes back */}
-                            <div className={`rounded-[2rem] p-7 flex flex-col relative overflow-hidden ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-[#FF4D7F] to-[#c42f52]' : 'bg-gradient-to-br from-slate-700 to-slate-900'} text-white shadow-[0_20px_50px_rgba(255,77,127,0.2)]`}>
+                            {/* CARD 3: Simulator (manual sliders) */}
+                            <div className={`rounded-[2rem] p-7 flex flex-col relative overflow-hidden ${guestForecast.totalGuests > 0 ? '' : 'md:col-span-2'} ${calculations.netBalance >= 0 ? 'bg-gradient-to-br from-[#FF4D7F] to-[#c42f52]' : 'bg-gradient-to-br from-slate-700 to-slate-900'} text-white shadow-[0_20px_50px_rgba(255,77,127,0.2)]`}>
                                 <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                                 <div className="relative z-10 flex flex-col flex-1">
                                     <div className="flex items-center gap-3 mb-6">
-                                        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg flex-shrink-0">💌</div>
+                                        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg flex-shrink-0">🎚️</div>
                                         <div>
-                                            <p className="text-xs font-bold text-white/60 uppercase tracking-widest">מעטפות</p>
-                                            <h3 className="font-bold text-white text-lg leading-tight">מה חוזר אליכם</h3>
+                                            <p className="text-xs font-bold text-white/60 uppercase tracking-widest">סימולטור</p>
+                                            <h3 className="font-bold text-white text-lg leading-tight">מספרים שאתם מגדירים</h3>
                                         </div>
                                     </div>
                                     <div className="space-y-3 flex-1">
@@ -2108,6 +2494,649 @@ export default function WeddingSimulator() {
                                 </div>
                             </div>
 
+                            {/* CARD 4: AI realistic forecast (only when guest list has data) */}
+                            {guestForecast.totalGuests > 0 && (() => {
+                                const aiNet = guestForecast.incomeMid + calculations.totalParentsGift - calculations.totalExpenses;
+                                const attendancePct = guestForecast.invitedHeads > 0
+                                    ? Math.round((guestForecast.expectedHeads / guestForecast.invitedHeads) * 100)
+                                    : 0;
+                                return (
+                                    <div className={`rounded-[2rem] p-7 flex flex-col relative overflow-hidden ${aiNet >= 0 ? 'bg-gradient-to-br from-violet-600 to-indigo-700' : 'bg-gradient-to-br from-slate-700 to-slate-900'} text-white shadow-[0_20px_50px_rgba(99,102,241,0.25)]`}>
+                                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                        <div className="relative z-10 flex flex-col flex-1">
+                                            <div className="flex items-center justify-between gap-3 mb-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                                                        <Sparkles size={18} strokeWidth={2.5} className="text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-white/60 uppercase tracking-widest">AI מציאותי</p>
+                                                        <h3 className="font-bold text-white text-lg leading-tight">לפי רשימת אורחים</h3>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white/15 border border-white/20 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
+                                                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest leading-none">הגעה צפויה</p>
+                                                    <p className="text-lg font-extrabold leading-tight">{attendancePct}%</p>
+                                                    <p className="text-[10px] text-white/70 leading-none mt-0.5">~{Math.round(guestForecast.expectedHeads)} איש</p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3 flex-1">
+                                                <div className="flex justify-between items-center text-sm py-2 border-b border-white/20">
+                                                    <span className="text-white/70">{guestForecast.invitedHeads} מוזמנים → ~{formatHeads(guestForecast.expectedHeads)} מגיעים</span>
+                                                    <span className="font-semibold">+{formatMoney(guestForecast.incomeMid)}</span>
+                                                </div>
+                                                {calculations.totalParentsGift > 0 && (
+                                                    <div className="flex justify-between items-center text-sm py-2 border-b border-white/20">
+                                                        <span className="text-white/70">השתתפות הורים</span>
+                                                        <span className="font-semibold">+{formatMoney(calculations.totalParentsGift)}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center text-sm py-2 border-b border-white/20">
+                                                    <span className="text-white/70">הוצאות ספקים</span>
+                                                    <span className="font-semibold">-{formatMoney(calculations.totalFixed)}</span>
+                                                </div>
+                                                {calculations.venueOverage > 0 && (
+                                                    <div className="flex justify-between items-center text-sm py-2 border-b border-white/20">
+                                                        <span className="text-white/70">תוספת אולם (מעל בסיס)</span>
+                                                        <span className="font-semibold">-{formatMoney(Math.round(calculations.venueOverage))}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center text-[11px] py-1 text-white/50">
+                                                    <span>טווח: {formatMoney(guestForecast.incomeLow)} – {formatMoney(guestForecast.incomeHigh)}</span>
+                                                    {guestForecast.lowConfidenceCount > 0 && <span>{guestForecast.lowConfidenceCount} ב־confidence נמוך</span>}
+                                                </div>
+                                            </div>
+                                            <div className="mt-6 bg-white/15 rounded-2xl p-5 text-center border border-white/20">
+                                                <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-2">נשאר לכם (לפי AI)</p>
+                                                <p className="text-4xl font-extrabold tracking-tight">
+                                                    {aiNet > 0 ? '+' : ''}{formatMoney(Math.round(aiNet))}
+                                                </p>
+                                                <p className="text-xs text-white/50 mt-2">לפי הסתברויות הגעה ומתנה לכל אורח</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                        </motion.div>
+                    )}
+
+                    {/* TAB CONTENT: ADVISOR — smart guest list (AI-classified) */}
+                    {activeTab === 'advisor' && (
+                        <motion.div
+                            key="advisor"
+                            initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="space-y-6"
+                        >
+                            {/* Header */}
+                            <div className="bg-gradient-to-br from-[#1F1A1A] to-[#2d2424] text-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.08)] relative overflow-hidden">
+                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#FF4D7F]/30 rounded-full blur-3xl"></div>
+                                <div className="relative z-10 flex items-center gap-3">
+                                    <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm">
+                                        <Sparkles size={20} strokeWidth={1.7} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">יועץ AI</p>
+                                        <h2 className="text-xl font-bold tracking-tight">רשימת אורחים חכמה</h2>
+                                        <p className="text-sm text-white/70 mt-0.5">הכנס שם והערה — Claude יסווג ויחזה הגעה ומתנה</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Forecast block */}
+                            {guestForecast.totalGuests > 0 && (
+                                <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                    <div className="flex items-center justify-between mb-5 gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">צפי משוקלל</p>
+                                            <h3 className="text-lg font-bold text-[#1F1A1A] tracking-tight">{guestForecast.invitedHeads} מוזמנים → ~{formatHeads(guestForecast.expectedHeads)} מגיעים</h3>
+                                            <p className="text-[11px] text-slate-400 mt-0.5">לפי הסתברות הגעה × מתנה לכל אורח</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            {guestForecast.invitedHeads > 0 && (
+                                                <div className="bg-pink-50 border border-pink-100 rounded-xl px-3 py-2 text-center">
+                                                    <p className="text-[9px] font-bold text-pink-600/70 uppercase tracking-widest leading-none">הגעה צפויה</p>
+                                                    <p className="text-lg font-extrabold text-[#FF4D7F] leading-tight">{Math.round((guestForecast.expectedHeads / guestForecast.invitedHeads) * 100)}%</p>
+                                                    <p className="text-[10px] text-pink-600/70 leading-none mt-0.5">~{Math.round(guestForecast.expectedHeads)} איש</p>
+                                                </div>
+                                            )}
+                                            {guestForecast.lowConfidenceCount > 0 && (
+                                                <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 border border-amber-200 text-amber-700 flex items-center gap-1.5">
+                                                    <ShieldAlert size={12} strokeWidth={2} />
+                                                    {guestForecast.lowConfidenceCount} ב־confidence נמוך
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3 mb-6">
+                                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
+                                            <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest mb-1">פסימי</p>
+                                            <p className="text-xl font-extrabold text-rose-700 tracking-tight">{formatMoney(guestForecast.incomeLow)}</p>
+                                        </div>
+                                        <div className="bg-[#FF4D7F]/10 border border-[#FF4D7F]/20 rounded-2xl p-4">
+                                            <p className="text-[10px] font-bold text-[#FF4D7F]/80 uppercase tracking-widest mb-1">ריאלי</p>
+                                            <p className="text-xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(guestForecast.incomeMid)}</p>
+                                        </div>
+                                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                                            <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest mb-1">אופטימי</p>
+                                            <p className="text-xl font-extrabold text-emerald-700 tracking-tight">{formatMoney(guestForecast.incomeHigh)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">פילוח לפי קטגוריה</p>
+                                        {GUEST_CATEGORIES.map(cat => {
+                                            const stat = guestForecast.byCategory.get(cat.id);
+                                            if (!stat || stat.count === 0) return null;
+                                            return (
+                                                <div key={cat.id} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+                                                    <span className="flex items-center gap-2">
+                                                        <span>{cat.emoji}</span>
+                                                        <span className="text-slate-700 font-medium">{cat.label}</span>
+                                                        <span className="text-xs text-slate-400">({stat.count} איש, ~{formatHeads(stat.expected)} מגיעים)</span>
+                                                    </span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(Math.round(stat.income))}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Add guest form */}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">הוספת אורח</p>
+                                <h3 className="text-lg font-bold text-[#1F1A1A] tracking-tight mb-4">סווג אורח חדש עם AI</h3>
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        value={newGuestName}
+                                        onChange={(e) => setNewGuestName(e.target.value)}
+                                        placeholder="שם האורח (למשל: יוסי כהן)"
+                                        className="w-full px-4 py-3 bg-[#F8F8F8] border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white focus:outline-none transition-all"
+                                    />
+                                    <textarea
+                                        value={newGuestNote}
+                                        onChange={(e) => setNewGuestNote(e.target.value)}
+                                        placeholder='הערה חופשית: "דוד מצד נדב" / "חבר צבא, עם בת זוג" / "קולגה מהעבודה של ליטל"'
+                                        rows={2}
+                                        className="w-full px-4 py-3 bg-[#F8F8F8] border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white focus:outline-none transition-all resize-none"
+                                    />
+                                    {classifyError && (
+                                        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-xl p-3">
+                                            ⚠️ {classifyError}
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={classifyAndAddGuest}
+                                            disabled={!newGuestName.trim() || classifyingGuest}
+                                            className="flex-1 bg-[#FF4D7F] hover:bg-[#e63e6d] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-2xl transition-all shadow-md shadow-[#FFDEDE] flex items-center justify-center gap-2"
+                                        >
+                                            {classifyingGuest ? (
+                                                <>
+                                                    <Loader2 size={16} strokeWidth={2} className="animate-spin" />
+                                                    מסווג עם Claude...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Sparkles size={16} strokeWidth={1.7} />
+                                                    סווג עם AI
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={addGuestManual}
+                                            disabled={!newGuestName.trim() || classifyingGuest}
+                                            className="px-5 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold rounded-2xl transition-colors text-sm"
+                                            title="הוסף בלי AI (ברירות מחדל)"
+                                        >
+                                            ידני
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Bulk import (paste / CSV) */}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <button
+                                    onClick={() => { setImportOpen(prev => !prev); setImportError(null); }}
+                                    className="w-full flex items-center justify-between text-right"
+                                >
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ייבוא בכמות</p>
+                                        <h3 className="text-lg font-bold text-[#1F1A1A] tracking-tight">הדבק רשימה או העלה Excel/CSV</h3>
+                                    </div>
+                                    <ChevronDown size={20} strokeWidth={1.7} className={`text-slate-400 transition-transform ${importOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {importOpen && (
+                                    <div className="mt-5 space-y-3">
+                                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs text-slate-600 leading-relaxed">
+                                            <p className="font-semibold text-slate-700 mb-1">פורמט נתמך:</p>
+                                            <p>שורה אחת לאורח. שם — או שם + הערה מופרדים בפסיק / Tab.</p>
+                                            <pre className="mt-2 bg-white border border-slate-200 rounded-lg p-2 font-mono text-[11px] leading-5 text-slate-600 overflow-x-auto" dir="ltr">{`יוסי כהן, חבר צבא של נדב
+שירה לוי, קולגה מהעבודה
+דודה רחל, משפחה מצד אמא של ליטל`}</pre>
+                                        </div>
+
+                                        <textarea
+                                            value={importText}
+                                            onChange={(e) => setImportText(e.target.value)}
+                                            placeholder="הדבק כאן את הרשימה — שורה לכל אורח..."
+                                            rows={6}
+                                            className="w-full px-4 py-3 bg-[#F8F8F8] border border-slate-100 rounded-2xl text-sm font-mono focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white focus:outline-none transition-all resize-y"
+                                            dir="auto"
+                                        />
+
+                                        <div className="flex items-center gap-2">
+                                            <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 cursor-pointer rounded-xl text-xs font-semibold text-slate-700 transition-colors">
+                                                <Receipt size={14} strokeWidth={1.7} />
+                                                <span>או העלה CSV</span>
+                                                <input
+                                                    type="file"
+                                                    accept=".csv,.txt,text/csv,text/plain"
+                                                    onChange={(e) => {
+                                                        const f = e.target.files?.[0];
+                                                        if (f) handleCsvFile(f);
+                                                        e.target.value = '';
+                                                    }}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                            <span className="text-xs text-slate-400">
+                                                {importText.trim() ? `${parseImportText(importText).length} שורות זוהו` : 'אין שורות'}
+                                            </span>
+                                        </div>
+
+                                        {importError && (
+                                            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-xl p-3">
+                                                ⚠️ {importError}
+                                            </div>
+                                        )}
+
+                                        {importProgress && (
+                                            <div className="bg-pink-50 border border-pink-200 rounded-xl p-3">
+                                                <div className="flex items-center justify-between text-xs font-semibold text-[#FF4D7F] mb-1.5">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
+                                                        מסווג...
+                                                    </span>
+                                                    <span>{importProgress.done} / {importProgress.total}</span>
+                                                </div>
+                                                <div className="h-1.5 bg-pink-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-[#FF4D7F] transition-all duration-300"
+                                                        style={{ width: `${(importProgress.done / Math.max(1, importProgress.total)) * 100}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={importBulkWithAI}
+                                                disabled={!importText.trim() || importProgress !== null}
+                                                className="flex-1 bg-[#FF4D7F] hover:bg-[#e63e6d] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-2xl transition-all shadow-md shadow-[#FFDEDE] flex items-center justify-center gap-2"
+                                            >
+                                                <Sparkles size={16} strokeWidth={1.7} />
+                                                סווג את כולם עם AI
+                                            </button>
+                                            <button
+                                                onClick={importBulkManual}
+                                                disabled={!importText.trim() || importProgress !== null}
+                                                className="px-5 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold rounded-2xl transition-colors text-sm"
+                                                title="הוסף בלי AI (ברירות מחדל)"
+                                            >
+                                                ידני
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Guest list */}
+                            <div className="bg-white rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
+                                <div className="flex items-center justify-between mb-5 gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">רשימת מוזמנים</p>
+                                        <h3 className="text-lg font-bold text-[#1F1A1A] tracking-tight">
+                                            {guestList.length} אורחים
+                                            {guestList.length > 0 && groupedGuests.totalFiltered !== guestList.length && (
+                                                <span className="text-sm font-medium text-slate-400"> · {groupedGuests.totalFiltered} מוצגים</span>
+                                            )}
+                                        </h3>
+                                    </div>
+                                    {groupedGuests.ordered.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                const allKeys = groupedGuests.ordered.map(g => String(g.key));
+                                                setCollapsedGuestGroups(prev => prev.size >= allKeys.length ? new Set() : new Set(allKeys));
+                                            }}
+                                            className="flex-shrink-0 text-xs font-semibold text-slate-500 hover:text-[#FF4D7F] transition-colors"
+                                        >
+                                            {collapsedGuestGroups.size >= groupedGuests.ordered.length ? 'פתח הכל' : 'סגור הכל'}
+                                        </button>
+                                    )}
+                                </div>
+                                {guestList.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400">
+                                        <Users size={32} strokeWidth={1.5} className="mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm font-medium">אין אורחים עדיין</p>
+                                        <p className="text-xs mt-1">הוסף אורח ראשון בטופס למעלה</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Search */}
+                                        <div className="relative mb-3">
+                                            <Search size={14} strokeWidth={1.7} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                value={guestSearch}
+                                                onChange={(e) => setGuestSearch(e.target.value)}
+                                                placeholder="חיפוש שם או הערה..."
+                                                className="w-full pr-9 pl-9 py-2.5 bg-[#F8F8F8] border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF4D7F] focus:bg-white focus:outline-none transition-all"
+                                            />
+                                            {guestSearch && (
+                                                <button
+                                                    onClick={() => setGuestSearch('')}
+                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                                                    title="נקה חיפוש"
+                                                >
+                                                    <X size={14} strokeWidth={2} />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Side filter */}
+                                        <div className="flex flex-wrap gap-1.5 mb-2">
+                                            {(['all', 'חתן', 'כלה', 'משותף'] as const).map(s => {
+                                                const active = guestSideFilter === s;
+                                                return (
+                                                    <button
+                                                        key={s}
+                                                        onClick={() => setGuestSideFilter(s)}
+                                                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${active ? 'bg-[#1F1A1A] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                                    >
+                                                        {s === 'all' ? 'כל הצדדים' : s}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Category filter — only chips for groups that have guests */}
+                                        <div className="flex flex-wrap gap-1.5 mb-4">
+                                            <button
+                                                onClick={() => setGuestCategoryFilter('all')}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${guestCategoryFilter === 'all' ? 'bg-[#FF4D7F] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                            >
+                                                כל הקבוצות
+                                            </button>
+                                            {GUEST_CATEGORIES.map(cat => {
+                                                const stat = guestForecast.byCategory.get(cat.id);
+                                                if (!stat || stat.count === 0) return null;
+                                                const active = guestCategoryFilter === cat.id;
+                                                return (
+                                                    <button
+                                                        key={cat.id}
+                                                        onClick={() => setGuestCategoryFilter(active ? 'all' : cat.id)}
+                                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-[#FF4D7F] text-white border-[#FF4D7F]' : `${cat.color} hover:opacity-80`}`}
+                                                    >
+                                                        {cat.emoji} {cat.label}
+                                                    </button>
+                                                );
+                                            })}
+                                            {guestForecast.unclassifiedCount > 0 && (
+                                                <button
+                                                    onClick={() => setGuestCategoryFilter(guestCategoryFilter === 'unclassified' ? 'all' : 'unclassified')}
+                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${guestCategoryFilter === 'unclassified' ? 'bg-[#FF4D7F] text-white border-[#FF4D7F]' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}`}
+                                                >
+                                                    ❓ ללא קטגוריה ({guestForecast.unclassifiedCount})
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Grouped guests */}
+                                        {groupedGuests.ordered.length === 0 ? (
+                                            <div className="text-center py-8 text-slate-400 text-sm">
+                                                לא נמצאו אורחים תואמים לסינון הנוכחי
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {groupedGuests.ordered.map(group => {
+                                                    const groupKey = String(group.key);
+                                                    const collapsed = collapsedGuestGroups.has(groupKey);
+                                                    return (
+                                                        <div key={groupKey} className="bg-[#F8F8F8] rounded-2xl border border-slate-100 overflow-hidden">
+                                                            {/* Group header */}
+                                                            <button
+                                                                onClick={() => toggleGuestGroupCollapsed(groupKey)}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white transition-colors text-right"
+                                                            >
+                                                                <ChevronDown size={16} strokeWidth={2} className={`text-slate-400 transition-transform flex-shrink-0 ${collapsed ? '-rotate-90' : ''}`} />
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${group.color}`}>
+                                                                    {group.emoji} {group.label}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500 font-medium flex-shrink-0">
+                                                                    {group.data.guests.length} כניסות · {group.data.heads} ראשים
+                                                                </span>
+                                                                <div className="flex-1" />
+                                                                <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                                                                    <span className="text-slate-500">~{formatHeads(group.data.expectedHeads)} מגיעים</span>
+                                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(Math.round(group.data.expectedIncome))}</span>
+                                                                </div>
+                                                            </button>
+                                                            {/* Group rows */}
+                                                            {!collapsed && (
+                                                                <div className="px-2 pb-2 space-y-1.5">
+                                                                    {group.data.guests.map(g => {
+                                                                        const expanded = expandedGuestId === g.id;
+                                                                        return (
+                                                                            <div key={g.id} className="bg-white border border-slate-100 rounded-xl">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setExpandedGuestId(expanded ? null : g.id)}
+                                                                                    className="w-full text-right p-3 hover:bg-slate-50 transition-colors rounded-xl"
+                                                                                >
+                                                                                    <div className="flex items-start gap-3">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                                <span className="font-semibold text-[#1F1A1A] text-sm">{g.name}</span>
+                                                                                                {g.side && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">{g.side}</span>
+                                                                                                )}
+                                                                                                {g.rsvp_status === 'confirmed' && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700" title="אישר הגעה">✓ אישר</span>
+                                                                                                )}
+                                                                                                {g.rsvp_status === 'doubtful' && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700" title="ספק אם יגיע">🤔 ספק</span>
+                                                                                                )}
+                                                                                                {g.rsvp_status === 'declined' && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700" title="לא מגיע">✗ לא מגיע</span>
+                                                                                                )}
+                                                                                                {g.plus_one && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700" title="זוג">💑</span>
+                                                                                                )}
+                                                                                                {g.gift_realistic === 0 && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700" title="משלם בנפרד">🆓</span>
+                                                                                                )}
+                                                                                                {g.confidence === 'low' && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700" title="ביטחון נמוך">⚠️</span>
+                                                                                                )}
+                                                                                                {g.manually_edited && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500" title="נערך ידנית">ידני</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            {g.note && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{g.note}</p>}
+                                                                                        </div>
+                                                                                        <div className="text-left text-[11px] flex-shrink-0 leading-tight">
+                                                                                            <div className="text-slate-500">{Math.round((g.attendance_prob ?? 0) * 100)}%</div>
+                                                                                            <div className="font-bold text-[#1F1A1A] mt-0.5">{g.gift_realistic === 0 ? '—' : formatMoney(g.gift_realistic)}</div>
+                                                                                        </div>
+                                                                                        <ChevronDown size={14} strokeWidth={2} className={`text-slate-400 mt-1 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                                                                                    </div>
+                                                                                </button>
+                                                                                {expanded && (
+                                                                                    <div className="px-3 pb-3 pt-2 border-t border-slate-100">
+                                                                                        {/* RSVP quick-toggle */}
+                                                                                        <div className="mb-3">
+                                                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">סטטוס הגעה</p>
+                                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                                {([
+                                                                                                    { v: null,        label: 'לא ידוע',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+                                                                                                    { v: 'confirmed', label: '✓ אישר',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                                                                                                    { v: 'doubtful',  label: '🤔 ספק',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                                                                                                    { v: 'declined',  label: '✗ לא מגיע', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+                                                                                                ] as const).map(opt => {
+                                                                                                    const active = (g.rsvp_status ?? null) === opt.v;
+                                                                                                    return (
+                                                                                                        <button
+                                                                                                            key={String(opt.v)}
+                                                                                                            onClick={() => setGuestRsvp(g, opt.v)}
+                                                                                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-[#1F1A1A] text-white border-[#1F1A1A]' : `${opt.cls} hover:opacity-80`}`}
+                                                                                                        >
+                                                                                                            {opt.label}
+                                                                                                        </button>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {/* Inline edit row */}
+                                                                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                                                                <select
+                                                                    value={g.side ?? ''}
+                                                                    onChange={(e) => updateGuest(g.id, { side: (e.target.value as GuestSide) || null })}
+                                                                    className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                                >
+                                                                    <option value="">צד</option>
+                                                                    {GUEST_SIDES.map(s => <option key={s} value={s}>{s}</option>)}
+                                                                </select>
+                                                                <select
+                                                                    value={g.category ?? ''}
+                                                                    onChange={(e) => {
+                                                                        const newCat = (e.target.value as GuestCategory) || null;
+                                                                        if (newCat && CATEGORY_DEFAULTS[newCat]) {
+                                                                            const single = CATEGORY_DEFAULTS[newCat];
+                                                                            const couple = CATEGORY_DEFAULTS_COUPLE[newCat];
+                                                                            updateGuest(g.id, {
+                                                                                category: newCat,
+                                                                                attendance_prob: single.attendance_prob,
+                                                                                ...(g.plus_one ? couple : { gift_low: single.gift_low, gift_realistic: single.gift_realistic, gift_high: single.gift_high }),
+                                                                            });
+                                                                        } else {
+                                                                            updateGuest(g.id, { category: newCat });
+                                                                        }
+                                                                    }}
+                                                                    className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                                >
+                                                                    <option value="">קטגוריה</option>
+                                                                    {GUEST_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                                                </select>
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={100}
+                                                                    value={Math.round((g.attendance_prob ?? 0) * 100)}
+                                                                    onChange={(e) => {
+                                                                        const v = Math.max(0, Math.min(100, Number(e.target.value)));
+                                                                        updateGuest(g.id, { attendance_prob: v / 100 });
+                                                                    }}
+                                                                    className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none"
+                                                                    title="אחוז הגעה"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    step={50}
+                                                                    value={g.gift_realistic}
+                                                                    disabled={g.gift_realistic === 0}
+                                                                    onChange={(e) => {
+                                                                        const raw = Number(e.target.value);
+                                                                        const minFloor = g.plus_one ? 800 : 400;
+                                                                        const v = raw === 0 ? 0 : Math.max(minFloor, raw);
+                                                                        updateGuest(g.id, { gift_realistic: v });
+                                                                    }}
+                                                                    className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center focus:ring-2 focus:ring-[#FF4D7F] focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                                                                    title="מתנה ריאלית (₪)"
+                                                                />
+                                                                <label className={`flex items-center gap-2 px-2 py-1.5 border rounded-lg text-xs cursor-pointer transition-colors ${g.gift_realistic === 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`} title="לא יספר בסטטיסטיקת הכסף, רק בכמות מוזמנים">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={g.gift_realistic === 0}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                updateGuest(g.id, { gift_low: 0, gift_realistic: 0, gift_high: 0 });
+                                                                            } else if (g.category) {
+                                                                                const target = g.plus_one ? CATEGORY_DEFAULTS_COUPLE[g.category] : CATEGORY_DEFAULTS[g.category];
+                                                                                updateGuest(g.id, { gift_low: target.gift_low, gift_realistic: target.gift_realistic, gift_high: target.gift_high });
+                                                                            } else {
+                                                                                const floor = g.plus_one ? 800 : 400;
+                                                                                updateGuest(g.id, { gift_low: floor, gift_realistic: floor + 50, gift_high: floor + 200 });
+                                                                            }
+                                                                        }}
+                                                                        className="accent-indigo-600"
+                                                                    />
+                                                                    <span>🆓 משלם בנפרד</span>
+                                                                </label>
+                                                                <label className={`flex items-center gap-2 px-2 py-1.5 border rounded-lg text-xs cursor-pointer transition-colors ${g.plus_one ? 'bg-pink-50 border-pink-200 text-pink-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`} title="המתנה היא סך המעטפה מהזוג, לא לראש">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={g.plus_one}
+                                                                        onChange={(e) => {
+                                                                            const nowCouple = e.target.checked;
+                                                                            // Snap to category-specific defaults when category is known.
+                                                                            if (g.category) {
+                                                                                const target = nowCouple ? CATEGORY_DEFAULTS_COUPLE[g.category] : CATEGORY_DEFAULTS[g.category];
+                                                                                updateGuest(g.id, {
+                                                                                    plus_one: nowCouple,
+                                                                                    gift_low: target.gift_low,
+                                                                                    gift_realistic: target.gift_realistic,
+                                                                                    gift_high: target.gift_high,
+                                                                                });
+                                                                            } else {
+                                                                                // Fallback: generic scale, with proper floor (800 couple / 400 single).
+                                                                                const factor = nowCouple ? 1.9 : 1 / 1.9;
+                                                                                const floor = nowCouple ? 800 : 400;
+                                                                                const round100 = (n: number) => Math.max(floor, Math.round(n / 100) * 100);
+                                                                                updateGuest(g.id, {
+                                                                                    plus_one: nowCouple,
+                                                                                    gift_low: round100(Number(g.gift_low) * factor),
+                                                                                    gift_realistic: round100(Number(g.gift_realistic) * factor),
+                                                                                    gift_high: round100(Number(g.gift_high) * factor),
+                                                                                });
+                                                                            }
+                                                                        }}
+                                                                        className="accent-[#FF4D7F]"
+                                                                    />
+                                                                    <span>{g.plus_one ? '💑 זוג מגיע' : '👤 בודד'}</span>
+                                                                </label>
+                                                                                        </div>
+                                                                                        <div className="flex justify-end mt-3">
+                                                                                            <button
+                                                                                                onClick={(e) => { e.stopPropagation(); deleteGuest(g.id); }}
+                                                                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                                                                title="הסר"
+                                                                                            >
+                                                                                                <Trash2 size={14} strokeWidth={1.7} />
+                                                                                                הסר
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </motion.div>
                     )}
 
