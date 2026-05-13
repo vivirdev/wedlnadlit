@@ -15,7 +15,7 @@ create table
 
     -- Classification (filled by AI, editable by user)
     side text, -- 'חתן' | 'כלה' | 'משותף'
-    category text, -- 'family_close' | 'family_extended' | 'friends_close' | 'friends' | 'work' | 'parents_friends'
+    category text, -- one of: family_immediate | family_close | family_extended | friends_bff | friends_close | friends | friends_acquaintance | work_close | work | work_boss | parents_friends | neighbors | abroad
     plus_one boolean not null default false,
 
     -- Attendance & gift estimation

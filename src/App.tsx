@@ -52,12 +52,19 @@ interface ChecklistItem {
 
 type GuestSide = 'חתן' | 'כלה' | 'משותף';
 type GuestCategory =
+    | 'family_immediate'
     | 'family_close'
     | 'family_extended'
+    | 'friends_bff'
     | 'friends_close'
     | 'friends'
+    | 'friends_acquaintance'
+    | 'work_close'
     | 'work'
-    | 'parents_friends';
+    | 'work_boss'
+    | 'parents_friends'
+    | 'neighbors'
+    | 'abroad';
 type GuestConfidence = 'high' | 'medium' | 'low';
 type GuestRsvp = 'confirmed' | 'doubtful' | 'declined';
 
@@ -67,7 +74,8 @@ interface Guest {
     note?: string | null;
     side?: GuestSide | null;
     category?: GuestCategory | null;
-    plus_one: boolean;
+    plus_one: boolean;       // legacy mirror of (head_count >= 2); app keeps it in sync.
+    head_count: number;      // 1 = single, 2 = couple, 3+ = family in one envelope.
     attendance_prob: number;
     gift_low: number;
     gift_realistic: number;
@@ -79,12 +87,19 @@ interface Guest {
 }
 
 const GUEST_CATEGORIES: { id: GuestCategory; label: string; emoji: string; color: string }[] = [
-    { id: 'family_close',     label: 'משפחה קרובה',         emoji: '👨\u200D👩\u200D👧', color: 'bg-rose-100 text-rose-700 border-rose-200' },
-    { id: 'family_extended',  label: 'משפחה מורחבת',         emoji: '🧑\u200D🤝\u200D🧑', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-    { id: 'friends_close',    label: 'חברים קרובים',         emoji: '💞', color: 'bg-pink-100 text-pink-700 border-pink-200' },
-    { id: 'friends',          label: 'חברים',               emoji: '🥂', color: 'bg-sky-100 text-sky-700 border-sky-200' },
-    { id: 'work',             label: 'עבודה',               emoji: '💼', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    { id: 'parents_friends',  label: 'חברים של ההורים',      emoji: '🎩', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    { id: 'family_immediate',     label: 'משפחה גרעינית',          emoji: '❤️',                  color: 'bg-red-100 text-red-700 border-red-200' },
+    { id: 'family_close',         label: 'משפחה קרובה',            emoji: '👨\u200D👩\u200D👧',   color: 'bg-rose-100 text-rose-700 border-rose-200' },
+    { id: 'family_extended',      label: 'משפחה מורחבת',           emoji: '🧑\u200D🤝\u200D🧑',  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { id: 'friends_bff',          label: 'חברי נפש',               emoji: '💖',                  color: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200' },
+    { id: 'friends_close',        label: 'חברים קרובים',           emoji: '💞',                  color: 'bg-pink-100 text-pink-700 border-pink-200' },
+    { id: 'friends',              label: 'חברים',                  emoji: '🥂',                  color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { id: 'friends_acquaintance', label: 'מכרים',                  emoji: '👋',                  color: 'bg-slate-100 text-slate-600 border-slate-200' },
+    { id: 'work_close',           label: 'קולגות קרובים',          emoji: '🤝',                  color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    { id: 'work',                 label: 'עבודה',                  emoji: '💼',                  color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+    { id: 'work_boss',            label: 'מנהלים / בכירים',        emoji: '🎯',                  color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    { id: 'parents_friends',      label: 'חברים של ההורים',        emoji: '🎩',                  color: 'bg-teal-100 text-teal-700 border-teal-200' },
+    { id: 'neighbors',            label: 'שכנים',                  emoji: '🏘️',                  color: 'bg-lime-100 text-lime-700 border-lime-200' },
+    { id: 'abroad',               label: 'מחו״ל',                  emoji: '✈️',                   color: 'bg-orange-100 text-orange-700 border-orange-200' },
 ];
 
 const GUEST_SIDES: GuestSide[] = ['חתן', 'כלה', 'משותף'];
@@ -93,22 +108,58 @@ const GUEST_SIDES: GuestSide[] = ['חתן', 'כלה', 'משותף'];
 // so attendance % and gift range snap to that category's typical values.
 // Mirrors the table in the Edge Function's CLASSIFY_SYSTEM prompt.
 const CATEGORY_DEFAULTS: Record<GuestCategory, { attendance_prob: number; gift_low: number; gift_realistic: number; gift_high: number }> = {
-    family_close:    { attendance_prob: 1.00, gift_low: 700, gift_realistic: 900, gift_high: 1500 },
-    family_extended: { attendance_prob: 0.90, gift_low: 450, gift_realistic: 550, gift_high: 800 },
-    friends_close:   { attendance_prob: 0.95, gift_low: 500, gift_realistic: 600, gift_high: 900 },
-    friends:         { attendance_prob: 0.85, gift_low: 400, gift_realistic: 500, gift_high: 700 },
-    work:            { attendance_prob: 0.65, gift_low: 400, gift_realistic: 450, gift_high: 600 },
-    parents_friends: { attendance_prob: 0.80, gift_low: 500, gift_realistic: 600, gift_high: 900 },
+    family_immediate:     { attendance_prob: 1.00, gift_low: 1200, gift_realistic: 1500, gift_high: 2500 },
+    family_close:         { attendance_prob: 1.00, gift_low: 700,  gift_realistic: 900,  gift_high: 1500 },
+    family_extended:      { attendance_prob: 0.90, gift_low: 450,  gift_realistic: 550,  gift_high: 800 },
+    friends_bff:          { attendance_prob: 1.00, gift_low: 600,  gift_realistic: 750,  gift_high: 1200 },
+    friends_close:        { attendance_prob: 0.95, gift_low: 500,  gift_realistic: 600,  gift_high: 900 },
+    friends:              { attendance_prob: 0.85, gift_low: 400,  gift_realistic: 500,  gift_high: 700 },
+    friends_acquaintance: { attendance_prob: 0.60, gift_low: 400,  gift_realistic: 450,  gift_high: 600 },
+    work_close:           { attendance_prob: 0.80, gift_low: 450,  gift_realistic: 550,  gift_high: 800 },
+    work:                 { attendance_prob: 0.60, gift_low: 400,  gift_realistic: 450,  gift_high: 600 },
+    work_boss:            { attendance_prob: 0.70, gift_low: 600,  gift_realistic: 750,  gift_high: 1100 },
+    parents_friends:      { attendance_prob: 0.80, gift_low: 500,  gift_realistic: 600,  gift_high: 900 },
+    neighbors:            { attendance_prob: 0.70, gift_low: 400,  gift_realistic: 500,  gift_high: 700 },
+    abroad:               { attendance_prob: 0.30, gift_low: 400,  gift_realistic: 500,  gift_high: 800 },
 };
 
-// Couple defaults — used when toggling plus_one ON so amounts snap to couple norms (couple floor = 800).
+// Couple defaults — used when head_count=2 so amounts snap to couple norms (couple floor = 800).
 const CATEGORY_DEFAULTS_COUPLE: Record<GuestCategory, { gift_low: number; gift_realistic: number; gift_high: number }> = {
-    family_close:    { gift_low: 1400, gift_realistic: 1800, gift_high: 3000 },
-    family_extended: { gift_low: 900,  gift_realistic: 1100, gift_high: 1500 },
-    friends_close:   { gift_low: 1100, gift_realistic: 1300, gift_high: 1800 },
-    friends:         { gift_low: 900,  gift_realistic: 1000, gift_high: 1300 },
-    work:            { gift_low: 800,  gift_realistic: 900,  gift_high: 1100 },
-    parents_friends: { gift_low: 1000, gift_realistic: 1200, gift_high: 1600 },
+    family_immediate:     { gift_low: 2200, gift_realistic: 2800, gift_high: 4500 },
+    family_close:         { gift_low: 1400, gift_realistic: 1800, gift_high: 3000 },
+    family_extended:      { gift_low: 900,  gift_realistic: 1100, gift_high: 1500 },
+    friends_bff:          { gift_low: 1200, gift_realistic: 1500, gift_high: 2200 },
+    friends_close:        { gift_low: 1100, gift_realistic: 1300, gift_high: 1800 },
+    friends:              { gift_low: 900,  gift_realistic: 1000, gift_high: 1300 },
+    friends_acquaintance: { gift_low: 800,  gift_realistic: 900,  gift_high: 1100 },
+    work_close:           { gift_low: 900,  gift_realistic: 1100, gift_high: 1500 },
+    work:                 { gift_low: 800,  gift_realistic: 900,  gift_high: 1100 },
+    work_boss:            { gift_low: 1200, gift_realistic: 1400, gift_high: 2000 },
+    parents_friends:      { gift_low: 1000, gift_realistic: 1200, gift_high: 1600 },
+    neighbors:            { gift_low: 800,  gift_realistic: 1000, gift_high: 1300 },
+    abroad:               { gift_low: 800,  gift_realistic: 1000, gift_high: 1500 },
+};
+
+// Picks gift floor + scaled defaults for any head_count.
+// 1 = single, 2 = couple, 3+ = couple values scaled by (heads/2), rounded to 100, with a hard floor of 400*heads.
+const giftDefaultsForHeads = (category: GuestCategory, heads: number): { attendance_prob: number; gift_low: number; gift_realistic: number; gift_high: number } => {
+    const single = CATEGORY_DEFAULTS[category];
+    if (heads <= 1) {
+        return { attendance_prob: single.attendance_prob, gift_low: single.gift_low, gift_realistic: single.gift_realistic, gift_high: single.gift_high };
+    }
+    const couple = CATEGORY_DEFAULTS_COUPLE[category];
+    if (heads === 2) {
+        return { attendance_prob: single.attendance_prob, gift_low: couple.gift_low, gift_realistic: couple.gift_realistic, gift_high: couple.gift_high };
+    }
+    const scale = heads / 2;
+    const floor = 400 * heads;
+    const round100 = (n: number) => Math.max(floor, Math.round(n * scale / 100) * 100);
+    return {
+        attendance_prob: single.attendance_prob,
+        gift_low: round100(couple.gift_low),
+        gift_realistic: round100(couple.gift_realistic),
+        gift_high: round100(couple.gift_high),
+    };
 };
 
 interface CpiData {
@@ -284,6 +335,7 @@ export default function WeddingSimulator() {
     const [guestSideFilter, setGuestSideFilter] = useState<GuestSide | 'all'>('all');
     const [guestCategoryFilter, setGuestCategoryFilter] = useState<GuestCategory | 'all' | 'unclassified'>('all');
     const [collapsedGuestGroups, setCollapsedGuestGroups] = useState<Set<string>>(new Set());
+    const [showDuplicates, setShowDuplicates] = useState(false);
     const [expandedGuestId, setExpandedGuestId] = useState<number | null>(null);
 
     const toggleGuestGroupCollapsed = (key: string) => {
@@ -584,7 +636,7 @@ export default function WeddingSimulator() {
         const byCategory = new Map<GuestCategory, { count: number; expected: number; income: number }>();
 
         for (const g of guestList) {
-            const heads = 1 + (g.plus_one ? 1 : 0);
+            const heads = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
             const prob = Math.max(0, Math.min(1, Number(g.attendance_prob ?? 0)));
             invitedHeads += heads;
             expectedHeads += heads * prob;
@@ -640,7 +692,7 @@ export default function WeddingSimulator() {
         for (const g of filtered) {
             const key: GuestGroupKey = (g.category ?? '_unclassified') as GuestGroupKey;
             const cur = groups.get(key) ?? { guests: [], heads: 0, expectedHeads: 0, expectedIncome: 0 };
-            const heads = 1 + (g.plus_one ? 1 : 0);
+            const heads = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
             const prob = Math.max(0, Math.min(1, Number(g.attendance_prob ?? 0)));
             cur.guests.push(g);
             cur.heads += heads;
@@ -657,6 +709,26 @@ export default function WeddingSimulator() {
         if (un) ordered.push({ key: '_unclassified', label: 'ללא קטגוריה', emoji: '❓', color: 'bg-slate-100 text-slate-700 border-slate-200', data: un });
         return { ordered, totalFiltered: filtered.length };
     }, [guestList, guestSearch, guestSideFilter, guestCategoryFilter]);
+
+    // Duplicate detection — groups guests by normalized name (lowercased, whitespace collapsed).
+    // Any name shared by 2+ guests is flagged so the user can review and delete.
+    const duplicateGuestGroups = useMemo(() => {
+        const byName = new Map<string, Guest[]>();
+        for (const g of guestList) {
+            const key = (g.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+            if (!key) continue;
+            const arr = byName.get(key) ?? [];
+            arr.push(g);
+            byName.set(key, arr);
+        }
+        const groups: Array<{ name: string; guests: Guest[] }> = [];
+        for (const [key, arr] of byName) {
+            if (arr.length > 1) groups.push({ name: arr[0].name || key, guests: arr });
+        }
+        groups.sort((a, b) => b.guests.length - a.guests.length);
+        const total = groups.reduce((s, g) => s + g.guests.length, 0);
+        return { groups, total };
+    }, [guestList]);
 
     // Checklist calculations
     const smartChecklistItems = useMemo(() => {
@@ -997,17 +1069,20 @@ export default function WeddingSimulator() {
             const c = (data as { classification?: Record<string, unknown> })?.classification;
             if (!c) throw new Error('המודל החזיר תשובה ריקה');
 
+            const headCount = Math.max(1, Math.min(12, Math.round(Number(c.head_count ?? (c.plus_one ? 2 : 1)))));
+            const floor = 400 * headCount;
             const payload = {
                 config_id: configId,
                 name: newGuestName.trim(),
                 note: newGuestNote.trim() || null,
                 side: (c.side as GuestSide) ?? null,
                 category: (c.category as GuestCategory) ?? null,
-                plus_one: Boolean(c.plus_one),
+                head_count: headCount,
+                plus_one: headCount >= 2,
                 attendance_prob: Number(c.attendance_prob ?? 0.85),
-                gift_low: Math.max(400, Number(c.gift_low ?? 400)),
-                gift_realistic: Math.max(400, Number(c.gift_realistic ?? 450)),
-                gift_high: Math.max(400, Number(c.gift_high ?? 600)),
+                gift_low: Math.max(floor, Number(c.gift_low ?? floor)),
+                gift_realistic: Math.max(floor, Number(c.gift_realistic ?? floor + 50)),
+                gift_high: Math.max(floor, Number(c.gift_high ?? floor + 200)),
                 confidence: (c.confidence as GuestConfidence) ?? 'medium',
                 ai_classified_at: new Date().toISOString(),
                 manually_edited: false,
@@ -1032,6 +1107,8 @@ export default function WeddingSimulator() {
             note: newGuestNote.trim() || null,
             category: 'friends',
             side: 'משותף',
+            head_count: 1,
+            plus_one: false,
             attendance_prob: 0.85,
             gift_low: 400,
             gift_realistic: 450,
@@ -1053,6 +1130,13 @@ export default function WeddingSimulator() {
         if (!configId) return;
         setGuestList(prev => prev.filter(g => g.id !== id));
         await supabase.from('guests').delete().eq('id', id);
+    };
+
+    const deleteAllGuests = async () => {
+        if (!configId || guestList.length === 0) return;
+        if (!confirm(`למחוק את כל ${guestList.length} האורחים? פעולה זו לא ניתנת לביטול.`)) return;
+        setGuestList([]);
+        await supabase.from('guests').delete().eq('config_id', configId);
     };
 
     // RSVP toggle. Sets rsvp_status (intent) and snaps attendance_prob to a matching number.
@@ -1107,6 +1191,8 @@ export default function WeddingSimulator() {
             note: r.note || null,
             category: 'friends' as GuestCategory,
             side: 'משותף' as GuestSide,
+            head_count: 1,
+            plus_one: false,
             attendance_prob: 0.85,
             gift_low: 400,
             gift_realistic: 450,
@@ -1145,17 +1231,20 @@ export default function WeddingSimulator() {
                     if (error) throw error;
                     const c = (data as { classification?: Record<string, unknown> })?.classification;
                     if (!c) throw new Error('empty classification');
+                    const headCount = Math.max(1, Math.min(12, Math.round(Number(c.head_count ?? (c.plus_one ? 2 : 1)))));
+                    const floor = 400 * headCount;
                     return {
                         config_id: configId,
                         name: row.name,
                         note: row.note || null,
                         side: (c.side as GuestSide) ?? null,
                         category: (c.category as GuestCategory) ?? null,
-                        plus_one: Boolean(c.plus_one),
+                        head_count: headCount,
+                        plus_one: headCount >= 2,
                         attendance_prob: Number(c.attendance_prob ?? 0.85),
-                        gift_low: Math.max(400, Number(c.gift_low ?? 400)),
-                        gift_realistic: Math.max(400, Number(c.gift_realistic ?? 450)),
-                        gift_high: Math.max(400, Number(c.gift_high ?? 600)),
+                        gift_low: Math.max(floor, Number(c.gift_low ?? floor)),
+                        gift_realistic: Math.max(floor, Number(c.gift_realistic ?? floor + 50)),
+                        gift_high: Math.max(floor, Number(c.gift_high ?? floor + 200)),
                         confidence: (c.confidence as GuestConfidence) ?? 'medium',
                         ai_classified_at: new Date().toISOString(),
                         manually_edited: false,
@@ -2808,18 +2897,89 @@ export default function WeddingSimulator() {
                                             )}
                                         </h3>
                                     </div>
-                                    {groupedGuests.ordered.length > 0 && (
-                                        <button
-                                            onClick={() => {
-                                                const allKeys = groupedGuests.ordered.map(g => String(g.key));
-                                                setCollapsedGuestGroups(prev => prev.size >= allKeys.length ? new Set() : new Set(allKeys));
-                                            }}
-                                            className="flex-shrink-0 text-xs font-semibold text-slate-500 hover:text-[#FF4D7F] transition-colors"
-                                        >
-                                            {collapsedGuestGroups.size >= groupedGuests.ordered.length ? 'פתח הכל' : 'סגור הכל'}
-                                        </button>
-                                    )}
+                                    <div className="flex-shrink-0 flex items-center gap-3 flex-wrap justify-end">
+                                        {groupedGuests.ordered.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    const allKeys = groupedGuests.ordered.map(g => String(g.key));
+                                                    setCollapsedGuestGroups(prev => prev.size >= allKeys.length ? new Set() : new Set(allKeys));
+                                                }}
+                                                className="text-xs font-semibold text-slate-500 hover:text-[#FF4D7F] transition-colors"
+                                            >
+                                                {collapsedGuestGroups.size >= groupedGuests.ordered.length ? 'פתח הכל' : 'סגור הכל'}
+                                            </button>
+                                        )}
+                                        {guestList.length > 1 && (
+                                            <button
+                                                onClick={() => {
+                                                    if (duplicateGuestGroups.groups.length === 0) {
+                                                        alert('לא נמצאו כפילויות 🎉');
+                                                        return;
+                                                    }
+                                                    setShowDuplicates(v => !v);
+                                                }}
+                                                className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${duplicateGuestGroups.groups.length > 0 ? 'text-amber-600 hover:text-amber-800' : 'text-slate-500 hover:text-[#FF4D7F]'}`}
+                                                title="בדוק אם יש שמות כפולים"
+                                            >
+                                                <Search size={14} strokeWidth={1.7} />
+                                                {duplicateGuestGroups.groups.length > 0
+                                                    ? `${showDuplicates ? 'הסתר' : 'הצג'} כפילויות (${duplicateGuestGroups.groups.length})`
+                                                    : 'בדוק כפילויות'}
+                                            </button>
+                                        )}
+                                        {guestList.length > 0 && (
+                                            <button
+                                                onClick={deleteAllGuests}
+                                                className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 transition-colors"
+                                                title="מחק את כל האורחים"
+                                            >
+                                                <Trash2 size={14} strokeWidth={1.7} />
+                                                מחק הכל
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
+                                {showDuplicates && duplicateGuestGroups.groups.length > 0 && (
+                                    <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-sm font-bold text-amber-800">
+                                                נמצאו {duplicateGuestGroups.groups.length} שמות שחוזרים ({duplicateGuestGroups.total} רשומות)
+                                            </p>
+                                            <button
+                                                onClick={() => setShowDuplicates(false)}
+                                                className="text-amber-700 hover:text-amber-900"
+                                                title="סגור"
+                                            >
+                                                <X size={16} strokeWidth={1.7} />
+                                            </button>
+                                        </div>
+                                        <ul className="space-y-3">
+                                            {duplicateGuestGroups.groups.map(group => (
+                                                <li key={group.name} className="rounded-xl bg-white/80 border border-amber-100 p-3">
+                                                    <p className="text-xs font-bold text-amber-700 mb-2">"{group.name}" — {group.guests.length} רשומות</p>
+                                                    <ul className="space-y-1.5">
+                                                        {group.guests.map(g => (
+                                                            <li key={g.id} className="flex items-center justify-between gap-2 text-xs">
+                                                                <span className="text-slate-700 truncate">
+                                                                    {g.note ? <span className="text-slate-500">{g.note}</span> : <span className="text-slate-400 italic">ללא הערה</span>}
+                                                                    {g.category && <span className="text-slate-400"> · {GUEST_CATEGORIES.find(c => c.id === g.category)?.label ?? g.category}</span>}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => deleteGuest(g.id)}
+                                                                    className="flex-shrink-0 flex items-center gap-1 text-red-500 hover:text-red-700 font-semibold"
+                                                                    title="מחק רשומה זו"
+                                                                >
+                                                                    <Trash2 size={12} strokeWidth={1.7} />
+                                                                    מחק
+                                                                </button>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                                 {guestList.length === 0 ? (
                                     <div className="text-center py-12 text-slate-400">
                                         <Users size={32} strokeWidth={1.5} className="mx-auto mb-3 opacity-50" />
@@ -2955,8 +3115,10 @@ export default function WeddingSimulator() {
                                                                                                 {g.rsvp_status === 'declined' && (
                                                                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700" title="לא מגיע">✗ לא מגיע</span>
                                                                                                 )}
-                                                                                                {g.plus_one && (
-                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700" title="זוג">💑</span>
+                                                                                                {(g.head_count ?? (g.plus_one ? 2 : 1)) >= 2 && (
+                                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700" title={`${g.head_count ?? 2} אנשים`}>
+                                                                                                        {(g.head_count ?? 2) === 2 ? '💑' : `👥 ×${g.head_count ?? 2}`}
+                                                                                                    </span>
                                                                                                 )}
                                                                                                 {g.gift_realistic === 0 && (
                                                                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700" title="משלם בנפרד">🆓</span>
@@ -3017,12 +3179,14 @@ export default function WeddingSimulator() {
                                                                     onChange={(e) => {
                                                                         const newCat = (e.target.value as GuestCategory) || null;
                                                                         if (newCat && CATEGORY_DEFAULTS[newCat]) {
-                                                                            const single = CATEGORY_DEFAULTS[newCat];
-                                                                            const couple = CATEGORY_DEFAULTS_COUPLE[newCat];
+                                                                            const heads = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
+                                                                            const t = giftDefaultsForHeads(newCat, heads);
                                                                             updateGuest(g.id, {
                                                                                 category: newCat,
-                                                                                attendance_prob: single.attendance_prob,
-                                                                                ...(g.plus_one ? couple : { gift_low: single.gift_low, gift_realistic: single.gift_realistic, gift_high: single.gift_high }),
+                                                                                attendance_prob: t.attendance_prob,
+                                                                                ...(g.gift_realistic === 0
+                                                                                    ? {}
+                                                                                    : { gift_low: t.gift_low, gift_realistic: t.gift_realistic, gift_high: t.gift_high }),
                                                                             });
                                                                         } else {
                                                                             updateGuest(g.id, { category: newCat });
@@ -3053,7 +3217,8 @@ export default function WeddingSimulator() {
                                                                     disabled={g.gift_realistic === 0}
                                                                     onChange={(e) => {
                                                                         const raw = Number(e.target.value);
-                                                                        const minFloor = g.plus_one ? 800 : 400;
+                                                                        const heads = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
+                                                                        const minFloor = 400 * heads;
                                                                         const v = raw === 0 ? 0 : Math.max(minFloor, raw);
                                                                         updateGuest(g.id, { gift_realistic: v });
                                                                     }}
@@ -3067,50 +3232,58 @@ export default function WeddingSimulator() {
                                                                         onChange={(e) => {
                                                                             if (e.target.checked) {
                                                                                 updateGuest(g.id, { gift_low: 0, gift_realistic: 0, gift_high: 0 });
-                                                                            } else if (g.category) {
-                                                                                const target = g.plus_one ? CATEGORY_DEFAULTS_COUPLE[g.category] : CATEGORY_DEFAULTS[g.category];
-                                                                                updateGuest(g.id, { gift_low: target.gift_low, gift_realistic: target.gift_realistic, gift_high: target.gift_high });
                                                                             } else {
-                                                                                const floor = g.plus_one ? 800 : 400;
-                                                                                updateGuest(g.id, { gift_low: floor, gift_realistic: floor + 50, gift_high: floor + 200 });
+                                                                                const heads = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
+                                                                                if (g.category) {
+                                                                                    const target = giftDefaultsForHeads(g.category, heads);
+                                                                                    updateGuest(g.id, { gift_low: target.gift_low, gift_realistic: target.gift_realistic, gift_high: target.gift_high });
+                                                                                } else {
+                                                                                    const floor = 400 * heads;
+                                                                                    updateGuest(g.id, { gift_low: floor, gift_realistic: floor + 50, gift_high: floor + 200 });
+                                                                                }
                                                                             }
                                                                         }}
                                                                         className="accent-indigo-600"
                                                                     />
                                                                     <span>🆓 משלם בנפרד</span>
                                                                 </label>
-                                                                <label className={`flex items-center gap-2 px-2 py-1.5 border rounded-lg text-xs cursor-pointer transition-colors ${g.plus_one ? 'bg-pink-50 border-pink-200 text-pink-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`} title="המתנה היא סך המעטפה מהזוג, לא לראש">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={g.plus_one}
-                                                                        onChange={(e) => {
-                                                                            const nowCouple = e.target.checked;
-                                                                            // Snap to category-specific defaults when category is known.
-                                                                            if (g.category) {
-                                                                                const target = nowCouple ? CATEGORY_DEFAULTS_COUPLE[g.category] : CATEGORY_DEFAULTS[g.category];
-                                                                                updateGuest(g.id, {
-                                                                                    plus_one: nowCouple,
-                                                                                    gift_low: target.gift_low,
-                                                                                    gift_realistic: target.gift_realistic,
-                                                                                    gift_high: target.gift_high,
-                                                                                });
+                                                                <div className="flex items-center gap-2 px-2 py-1.5 border bg-white border-slate-200 rounded-lg text-xs" title="מספר נפשות לרשומה (1=בודד, 2=זוג, 3+=משפחה במעטפה אחת)">
+                                                                    <span className="text-slate-500">👥</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const cur = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
+                                                                            if (cur <= 1) return;
+                                                                            const next = cur - 1;
+                                                                            if (g.category && g.gift_realistic !== 0) {
+                                                                                const t = giftDefaultsForHeads(g.category, next);
+                                                                                updateGuest(g.id, { head_count: next, plus_one: next >= 2, gift_low: t.gift_low, gift_realistic: t.gift_realistic, gift_high: t.gift_high });
                                                                             } else {
-                                                                                // Fallback: generic scale, with proper floor (800 couple / 400 single).
-                                                                                const factor = nowCouple ? 1.9 : 1 / 1.9;
-                                                                                const floor = nowCouple ? 800 : 400;
-                                                                                const round100 = (n: number) => Math.max(floor, Math.round(n / 100) * 100);
-                                                                                updateGuest(g.id, {
-                                                                                    plus_one: nowCouple,
-                                                                                    gift_low: round100(Number(g.gift_low) * factor),
-                                                                                    gift_realistic: round100(Number(g.gift_realistic) * factor),
-                                                                                    gift_high: round100(Number(g.gift_high) * factor),
-                                                                                });
+                                                                                updateGuest(g.id, { head_count: next, plus_one: next >= 2 });
                                                                             }
                                                                         }}
-                                                                        className="accent-[#FF4D7F]"
-                                                                    />
-                                                                    <span>{g.plus_one ? '💑 זוג מגיע' : '👤 בודד'}</span>
-                                                                </label>
+                                                                        className="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold leading-none disabled:opacity-40"
+                                                                        disabled={(g.head_count ?? (g.plus_one ? 2 : 1)) <= 1}
+                                                                    >−</button>
+                                                                    <span className="font-bold text-[#1F1A1A] w-4 text-center">{g.head_count ?? (g.plus_one ? 2 : 1)}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const cur = Math.max(1, Number(g.head_count ?? (g.plus_one ? 2 : 1)));
+                                                                            if (cur >= 12) return;
+                                                                            const next = cur + 1;
+                                                                            if (g.category && g.gift_realistic !== 0) {
+                                                                                const t = giftDefaultsForHeads(g.category, next);
+                                                                                updateGuest(g.id, { head_count: next, plus_one: next >= 2, gift_low: t.gift_low, gift_realistic: t.gift_realistic, gift_high: t.gift_high });
+                                                                            } else {
+                                                                                updateGuest(g.id, { head_count: next, plus_one: next >= 2 });
+                                                                            }
+                                                                        }}
+                                                                        className="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold leading-none disabled:opacity-40"
+                                                                        disabled={(g.head_count ?? (g.plus_one ? 2 : 1)) >= 12}
+                                                                    >+</button>
+                                                                    <span className="text-slate-500 mr-1">{(g.head_count ?? (g.plus_one ? 2 : 1)) === 1 ? 'בודד' : (g.head_count ?? 2) === 2 ? 'זוג' : 'משפחה'}</span>
+                                                                </div>
                                                                                         </div>
                                                                                         <div className="flex justify-end mt-3">
                                                                                             <button
