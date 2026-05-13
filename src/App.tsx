@@ -1221,14 +1221,36 @@ export default function WeddingSimulator() {
         let done = 0;
         const failures: string[] = [];
 
-        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-            const batch = rows.slice(i, i + BATCH_SIZE);
+        // Retries on 429 with exponential backoff. The Edge Function passes 429
+        // through from Anthropic (other errors surface as 502 and aren't retried).
+        const invokeClassify = async (name: string, note: string | null) => {
+            const MAX_ATTEMPTS = 4;
+            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+                const { data, error } = await supabase.functions.invoke('wedding-advisor', {
+                    body: { action: 'classify', name, note },
+                });
+                if (!error) return data;
+                const status = (error as { context?: { status?: number } })?.context?.status;
+                const msg = (error as { message?: string })?.message ?? String(error);
+                const isRateLimit = status === 429 || /\b429\b|rate.?limit/i.test(msg);
+                if (!isRateLimit || attempt === MAX_ATTEMPTS - 1) throw error;
+                const wait = 1500 * Math.pow(2, attempt) + Math.random() * 500;
+                await new Promise(r => setTimeout(r, wait));
+            }
+            throw new Error('unreachable');
+        };
+
+        // First batch is size 1: that single call warms the Anthropic prompt
+        // cache, so every subsequent parallel call lands a cache hit and pays
+        // ~10% input tokens. Without this, a parallel first batch can fan out
+        // before the cache is written and burn full token cost ×5.
+        let i = 0;
+        while (i < rows.length) {
+            const size = i === 0 ? 1 : BATCH_SIZE;
+            const batch = rows.slice(i, i + size);
             const results = await Promise.all(batch.map(async (row) => {
                 try {
-                    const { data, error } = await supabase.functions.invoke('wedding-advisor', {
-                        body: { action: 'classify', name: row.name, note: row.note || null },
-                    });
-                    if (error) throw error;
+                    const data = await invokeClassify(row.name, row.note || null);
                     const c = (data as { classification?: Record<string, unknown> })?.classification;
                     if (!c) throw new Error('empty classification');
                     const headCount = Math.max(1, Math.min(12, Math.round(Number(c.head_count ?? (c.plus_one ? 2 : 1)))));
@@ -1260,6 +1282,7 @@ export default function WeddingSimulator() {
                 await supabase.from('guests').insert(valid);
             }
             done += batch.length;
+            i += batch.length;
             setImportProgress({ done, total: rows.length });
         }
 

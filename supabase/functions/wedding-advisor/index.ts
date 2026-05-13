@@ -158,13 +158,23 @@ async function handleClassify(body: { name?: string; note?: string }, apiKey: st
     body: JSON.stringify({
       model: HAIKU,
       max_tokens: 500,
-      system: CLASSIFY_SYSTEM,
+      // Prompt caching: the system block is constant and large (~3.5K tokens with
+      // 13 categories). Marking it ephemeral lets Anthropic serve it from cache at
+      // ~10% of the input-token rate for 5 minutes, which is what makes bulk CSV
+      // imports survive the 50K tokens/min rate limit.
+      system: [
+        { type: "text", text: CLASSIFY_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
       messages: [{ role: "user", content: userMessage }],
     }),
   });
 
   if (!res.ok) {
-    return json({ error: `Anthropic error: ${res.status} ${await res.text()}` }, 502);
+    const errText = await res.text();
+    // Pass 429 through so the client can retry with backoff. Other upstream
+    // failures still surface as 502 (treat-as-bug).
+    const status = res.status === 429 ? 429 : 502;
+    return json({ error: `Anthropic error: ${res.status} ${errText}` }, status);
   }
 
   const data = await res.json();
