@@ -538,15 +538,25 @@ export default function WeddingSimulator() {
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
 
-        // CPI Indexation — applies to full contract value (225 × 610 = 137,250)
-        // The resulting difference is added/subtracted from the final payment
+        // CPI Indexation (contract clause 3.4) — applies per-payment.
+        // Advance 1 is paid at signing (CPI == base ⇒ no indexation).
+        // Advance 2 and the final remainder each get indexed separately, with a
+        // per-payment cap: above 1% of THAT payment, excess is reduced by 50%
+        // → capped = 1% + 50% × (|raw| − 1%), preserving sign.
         const venueRemainder = venueCost - venueAdvance;
         const cpiChangeRatio = (cpiData.currentCpi - cpiData.baseCpi) / cpiData.baseCpi;
-        const rawIndexation = venueBaseContractValue * cpiChangeRatio;
-        // Cap clause (3.4): if indexation exceeds 1% of total contract, only 50% applies
-        const indexationCapped = Math.abs(rawIndexation) > venueBaseContractValue * 0.01
-            ? rawIndexation * 0.5
-            : rawIndexation;
+        const capIndexation = (payment: number): number => {
+            const raw = payment * cpiChangeRatio;
+            const threshold = payment * 0.01;
+            return Math.abs(raw) > threshold
+                ? Math.sign(raw) * (threshold + (Math.abs(raw) - threshold) * 0.5)
+                : raw;
+        };
+        const indexationAdvance2 = capIndexation(venueAdvance2);
+        const indexationRemainder = capIndexation(venueRemainder);
+        // Total indexation is calculated per-payment, but paid together as a
+        // single settlement on the final payment (after the wedding).
+        const indexationCapped = indexationAdvance2 + indexationRemainder;
         const adjustedVenueRemainder = venueRemainder + indexationCapped;
         // CPI-adjusted total venue cost — this is what parents actually pay
         const adjustedVenueCost = venueCost + indexationCapped;
@@ -1858,14 +1868,14 @@ export default function WeddingSimulator() {
                                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-3">
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-slate-600 font-medium">
-                                                        סכום הצמדה {Math.abs(cpiData.changePercent) > 1 && <span className="text-[10px] text-slate-400">(מופחת 50%)</span>}
+                                                        סכום הצמדה {Math.abs(cpiData.changePercent) > 1 && <span className="text-[10px] text-slate-400">(מעל 1% — 50%)</span>}
                                                     </span>
                                                     <span className={`font-bold text-base ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                         {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
                                                     </span>
                                                 </div>
                                                 {Math.abs(cpiData.changePercent) > 1 && (
-                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 בהסכם — הפרשים מעל 1% מופחתים ב־50%</p>
+                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 — ההצמדה מחושבת על כל תשלום בנפרד (מקדמה 2 + יתרה), עד 1% מלא ומעבר לכך 50%. סך הכל משולם יחד עם היתרה אחרי האירוע</p>
                                                 )}
                                             </div>
                                         )}
