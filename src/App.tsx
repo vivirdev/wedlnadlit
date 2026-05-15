@@ -538,25 +538,18 @@ export default function WeddingSimulator() {
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
 
-        // CPI Indexation (contract clause 3.4) — applies per-payment.
-        // Advance 1 is paid at signing (CPI == base ⇒ no indexation).
-        // Advance 2 and the final remainder each get indexed separately, with a
-        // per-payment cap: above 1% of THAT payment, excess is reduced by 50%
-        // → capped = 1% + 50% × (|raw| − 1%), preserving sign.
+        // CPI Indexation (contract clause 3.4) — applies to the FULL venue cost
+        // (base contract + any extra-guest charges), settled in a single payment
+        // together with the final balance after the wedding. Cap: above 1% of
+        // the total, the excess is reduced by 50% → capped = 1% + 50% × (|raw| − 1%),
+        // preserving sign.
         const venueRemainder = venueCost - venueAdvance;
         const cpiChangeRatio = (cpiData.currentCpi - cpiData.baseCpi) / cpiData.baseCpi;
-        const capIndexation = (payment: number): number => {
-            const raw = payment * cpiChangeRatio;
-            const threshold = payment * 0.01;
-            return Math.abs(raw) > threshold
-                ? Math.sign(raw) * (threshold + (Math.abs(raw) - threshold) * 0.5)
-                : raw;
-        };
-        const indexationAdvance2 = capIndexation(venueAdvance2);
-        const indexationRemainder = capIndexation(venueRemainder);
-        // Total indexation is calculated per-payment, but paid together as a
-        // single settlement on the final payment (after the wedding).
-        const indexationCapped = indexationAdvance2 + indexationRemainder;
+        const rawIndexation = venueCost * cpiChangeRatio;
+        const onePercentThreshold = venueCost * 0.01;
+        const indexationCapped = Math.abs(rawIndexation) > onePercentThreshold
+            ? Math.sign(rawIndexation) * (onePercentThreshold + (Math.abs(rawIndexation) - onePercentThreshold) * 0.5)
+            : rawIndexation;
         const adjustedVenueRemainder = venueRemainder + indexationCapped;
         // CPI-adjusted total venue cost — this is what parents actually pay
         const adjustedVenueCost = venueCost + indexationCapped;
@@ -1875,7 +1868,7 @@ export default function WeddingSimulator() {
                                                     </span>
                                                 </div>
                                                 {Math.abs(cpiData.changePercent) > 1 && (
-                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 — ההצמדה מחושבת על כל תשלום בנפרד (מקדמה 2 + יתרה), עד 1% מלא ומעבר לכך 50%. סך הכל משולם יחד עם היתרה אחרי האירוע</p>
+                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 — ההצמדה מחושבת על הסכום הכולל של האירוע (כולל תוספות אורחים). עד 1% מהסכום משלמים מלא, ומעבר לכך 50% מהיתרה. משולם יחד עם היתרה אחרי האירוע</p>
                                                 )}
                                             </div>
                                         )}
