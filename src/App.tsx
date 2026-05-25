@@ -556,11 +556,7 @@ export default function WeddingSimulator() {
 
         // 2. Fixed Expenses & Advances
         const baseFixed = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.amount), 0);
-        const totalFixedAdvances = fixedExpenses.reduce((sum: number, exp: Expense) => {
-            const amount = Number(exp.amount) || 0;
-            const adv = Number(exp.advance) || 0;
-            return sum + (exp.paid ? Math.max(amount, adv) : adv);
-        }, 0);
+        const totalFixedAdvances = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.advance || 0), 0);
 
         // Calculate buffer (10% of fixed expenses if enabled)
         const safetyBufferAmount = useSafetyBuffer ? baseFixed * 0.10 : 0;
@@ -926,7 +922,7 @@ export default function WeddingSimulator() {
         return actions.sort((a, b) => order[a.urgency] - order[b.urgency]).slice(0, 8);
     }, [smartChecklistItems, fixedExpenses, daysLeft]);
 
-    // Advances breakdown by who paid (Nadav / Lital / shared / unassigned)
+    // Advances breakdown — only advances paid by Nadav / Lital
     const advancePayerBreakdown = useMemo(() => {
         const totals: Record<AdvancePayer | 'לא משויך', number> = {
             'נדב': 0,
@@ -935,15 +931,11 @@ export default function WeddingSimulator() {
             'לא משויך': 0,
         };
         for (const e of fixedExpenses) {
-            const amount = Number(e.amount) || 0;
             const adv = Number(e.advance) || 0;
-            const paidAmount = e.paid ? Math.max(amount, adv) : adv;
-            if (paidAmount <= 0) continue;
-            const payer = (e.advance_paid_by as AdvancePayer | undefined);
-            if (payer && (ADVANCE_PAYERS as readonly string[]).includes(payer)) {
-                totals[payer] += paidAmount;
-            } else {
-                totals['לא משויך'] += paidAmount;
+            if (adv <= 0) continue;
+            const payer = e.advance_paid_by;
+            if (payer === 'נדב' || payer === 'ליטל') {
+                totals[payer] += adv;
             }
         }
         return totals;
@@ -1656,22 +1648,18 @@ export default function WeddingSimulator() {
                             {(() => {
                                 const nadav = advancePayerBreakdown['נדב'];
                                 const lital = advancePayerBreakdown['ליטל'];
-                                const shared = advancePayerBreakdown['משותף'];
-                                const unassigned = advancePayerBreakdown['לא משויך'];
-                                const totalPaid = nadav + lital + shared + unassigned;
+                                const totalPaid = nadav + lital;
                                 if (totalPaid === 0) return null;
                                 const seg = (v: number) => totalPaid ? (v / totalPaid) * 100 : 0;
                                 return (
                                     <div className="md:col-span-2 bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
                                         <div className="flex items-center justify-between mb-3">
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">מי שילם עד עכשיו</p>
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">מקדמות נדב וליטל</p>
                                             <p className="text-xs font-semibold text-slate-500">סה"כ {formatMoney(totalPaid)}</p>
                                         </div>
                                         <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden flex" dir="ltr">
                                             {nadav > 0 && <div className="h-full bg-sky-500" style={{ width: `${seg(nadav)}%` }} title={`נדב: ${formatMoney(nadav)}`} />}
                                             {lital > 0 && <div className="h-full bg-pink-500" style={{ width: `${seg(lital)}%` }} title={`ליטל: ${formatMoney(lital)}`} />}
-                                            {shared > 0 && <div className="h-full bg-violet-500" style={{ width: `${seg(shared)}%` }} title={`משותף: ${formatMoney(shared)}`} />}
-                                            {unassigned > 0 && <div className="h-full bg-slate-300" style={{ width: `${seg(unassigned)}%` }} title={`לא משויך: ${formatMoney(unassigned)}`} />}
                                         </div>
                                         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
                                             {nadav > 0 && (
@@ -1682,16 +1670,6 @@ export default function WeddingSimulator() {
                                             {lital > 0 && (
                                                 <span className="flex items-center gap-1.5 text-slate-600">
                                                     <span className="w-2 h-2 rounded-full bg-pink-500" />ליטל <span className="font-bold text-[#1F1A1A]">{formatMoney(lital)}</span>
-                                                </span>
-                                            )}
-                                            {shared > 0 && (
-                                                <span className="flex items-center gap-1.5 text-slate-600">
-                                                    <span className="w-2 h-2 rounded-full bg-violet-500" />משותף <span className="font-bold text-[#1F1A1A]">{formatMoney(shared)}</span>
-                                                </span>
-                                            )}
-                                            {unassigned > 0 && (
-                                                <span className="flex items-center gap-1.5 text-slate-500">
-                                                    <span className="w-2 h-2 rounded-full bg-slate-300" />לא משויך <span className="font-bold text-slate-600">{formatMoney(unassigned)}</span>
                                                 </span>
                                             )}
                                         </div>
@@ -2538,9 +2516,9 @@ export default function WeddingSimulator() {
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).length === 0 && (
                                         <p className="text-sm text-slate-400 italic py-2">אין מקדמות עדיין</p>
                                     )}
-                                    {(advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + advancePayerBreakdown['משותף']) > 0 && (
+                                    {(advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל']) > 0 && (
                                         <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                                            {(['נדב', 'ליטל', 'משותף'] as const).map(payer => (
+                                            {(['נדב', 'ליטל'] as const).map(payer => (
                                                 advancePayerBreakdown[payer] > 0 && (
                                                     <span key={payer} className="text-slate-500">
                                                         {payer}: <span className="font-semibold text-[#333333]">{formatMoney(advancePayerBreakdown[payer])}</span>
