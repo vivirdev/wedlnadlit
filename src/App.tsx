@@ -556,7 +556,11 @@ export default function WeddingSimulator() {
 
         // 2. Fixed Expenses & Advances
         const baseFixed = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.amount), 0);
-        const totalFixedAdvances = fixedExpenses.reduce((sum: number, exp: Expense) => sum + Number(exp.advance || 0), 0);
+        const totalFixedAdvances = fixedExpenses.reduce((sum: number, exp: Expense) => {
+            const amount = Number(exp.amount) || 0;
+            const adv = Number(exp.advance) || 0;
+            return sum + (exp.paid ? Math.max(amount, adv) : adv);
+        }, 0);
 
         // Calculate buffer (10% of fixed expenses if enabled)
         const safetyBufferAmount = useSafetyBuffer ? baseFixed * 0.10 : 0;
@@ -931,13 +935,15 @@ export default function WeddingSimulator() {
             'לא משויך': 0,
         };
         for (const e of fixedExpenses) {
+            const amount = Number(e.amount) || 0;
             const adv = Number(e.advance) || 0;
-            if (adv <= 0) continue;
+            const paidAmount = e.paid ? Math.max(amount, adv) : adv;
+            if (paidAmount <= 0) continue;
             const payer = (e.advance_paid_by as AdvancePayer | undefined);
             if (payer && (ADVANCE_PAYERS as readonly string[]).includes(payer)) {
-                totals[payer] += adv;
+                totals[payer] += paidAmount;
             } else {
-                totals['לא משויך'] += adv;
+                totals['לא משויך'] += paidAmount;
             }
         }
         return totals;
