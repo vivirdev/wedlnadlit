@@ -21,96 +21,35 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CLASSIFY_SYSTEM = `אתה מסווג אורחים לחתונה ישראלית בשנת 2026 של נדב וליטל.
-מקבל: שם + הערה חופשית של המתכנן.
-החזר JSON תקני בלבד (ללא markdown, ללא טקסט נוסף) עם השדות הבאים:
+const CLASSIFY_SYSTEM = `מסווג אורחים לחתונה ישראלית 2026 (נדב+ליטל). קלט: שם+הערה. החזר JSON בלבד:
+{"side":"חתן|כלה|משותף","category":"<cat>","head_count":int,"plus_one":bool,"attendance_prob":0-1,"gift_low":int,"gift_realistic":int,"gift_high":int,"confidence":"high|medium|low","reasoning":"משפט קצר"}
 
-{
-  "side": "חתן" | "כלה" | "משותף",
-  "category": "family_immediate" | "family_close" | "family_extended" | "friends_bff" | "friends_close" | "friends" | "friends_acquaintance" | "work_close" | "work" | "work_boss" | "parents_friends" | "neighbors" | "abroad",
-  "head_count": integer (1-12),  // כמה אנשים יושבים מתחת לרשומה הזאת
-  "plus_one": boolean,            // legacy: true אם head_count >= 2
-  "attendance_prob": number (0.00-1.00),
-  "gift_low": integer,
-  "gift_realistic": integer,
-  "gift_high": integer,
-  "confidence": "high" | "medium" | "low",
-  "reasoning": string (משפט אחד קצר בעברית למה סיווגת ככה)
-}
+קטגוריות (cat): family_immediate, family_close, family_extended, friends_bff, friends_close, friends, friends_acquaintance, work_close, work, work_boss, parents_friends, neighbors, abroad.
 
-** ספירת נפשות (head_count) — חוק יסוד **:
-רשומה אחת = מעטפה אחת. גם אם יושבים 4 אנשים, זאת רשומה אחת עם head_count=4.
-- "יוסי" → 1
-- "יוסי ושרה", "דני+מיכל", "אבי ואשתו", "+1", "ובת זוגו" → 2
-- "משפחת כהן" (בלי מספר) → 2 (זוג בברירת מחדל)
-- "משפחת כהן 4", "משפחת כהן (4 אנשים)", "ההורים + 2 ילדים", "אבא אמא ושני ילדים" → 4
-- "ההורים והילדים" בלי מספר ספציפי → 4 (הנחה סבירה: הורים + 2)
-- "+3", "פלוס שלושה", "ועוד 3 ילדים" → השם הראשון + 3 = 4
-- "צוות של 5 מהעבודה" → 5 (אבל ציין ב־reasoning שכנראה כדאי לפצל)
-- ילדים מתחת לגיל 3 לא יושבים — אל תספור אותם.
+head_count = כמה נפשות במעטפה אחת (לא כמה מעטפות). "יוסי"=1; "יוסי ושרה"/"דני+מיכל"/"+1"=2; "משפחת כהן" בלי מספר=2; "משפחת כהן 4"/"+2 ילדים"=4; "+3"=4. ילדים מתחת ל-3 לא נספרים.
 
-** סמנטיקת מתנות **:
-gift_low / gift_realistic / gift_high הם **סך המעטפה הכוללת** של הרשומה — לא לראש.
-משפחה עם head_count=4 = מעטפה אחת מוגדלת, לא 4 מעטפות נפרדות.
+gift_* = סך המעטפה (לא לראש). חובה: gift_* ≥ 400×head_count, וגם gift_low ≤ gift_realistic ≤ gift_high. plus_one = (head_count≥2).
 
-חוקים מחייבים:
-- כל gift_* חייב להיות >= 400 × head_count (רצפה דינמית: בודד=400, זוג=800, 3=1200, 4=1600...).
-- gift_low <= gift_realistic <= gift_high.
-- plus_one = (head_count >= 2).
+ברירות מחדל לבודד (head_count=1): attendance%, realistic(low-high):
+  family_immediate 100%, 1500(1200-2500) — הורים/אחים/ילדים
+  family_close 100%, 900(700-1500) — סבים/דודים
+  family_extended 90%, 550(450-800) — בני דודים
+  friends_bff 100%, 750(600-1200) — חברי נפש
+  friends_close 95%, 600(500-900) — צבא/ילדות
+  friends 85%, 500(400-700)
+  friends_acquaintance 60%, 450(400-600) — מכרים
+  work_close 80%, 550(450-800)
+  work 60%, 450(400-600)
+  work_boss 70%, 750(600-1100)
+  parents_friends 80%, 600(500-900)
+  neighbors 70%, 500(400-700)
+  abroad 30%, 500(400-800)
 
-ברירות מחדל לפי קטגוריה — לאדם בודד (head_count=1):
-  family_immediate:     100% הגעה, 1500 (טווח 1200-2500)   ← הורים/אחים/ילדים בלבד
-  family_close:         100% הגעה, 900  (טווח 700-1500)    ← סבים/דודים
-  family_extended:       90% הגעה, 550  (טווח 450-800)     ← בני דודים/רחוקים
-  friends_bff:          100% הגעה, 750  (טווח 600-1200)    ← חברי נפש בלבד
-  friends_close:         95% הגעה, 600  (טווח 500-900)     ← מהצבא/ילדות/יומיומיים
-  friends:               85% הגעה, 500  (טווח 400-700)
-  friends_acquaintance:  60% הגעה, 450  (טווח 400-600)     ← מכרים, פחות בקשר
-  work_close:            80% הגעה, 550  (טווח 450-800)     ← הצוות הקרוב
-  work:                  60% הגעה, 450  (טווח 400-600)
-  work_boss:             70% הגעה, 750  (טווח 600-1100)    ← מנהלים/בכירים
-  parents_friends:       80% הגעה, 600  (טווח 500-900)
-  neighbors:             70% הגעה, 500  (טווח 400-700)
-  abroad:                30% הגעה, 500  (טווח 400-800)     ← חיים בחו״ל
+לזוג (head_count=2) הכפל את ה-realistic ב-1.85, low ב-1.5, high ב-1.7, עגל למאות. ל-head_count≥3 הכפל את ערכי הזוג ב-(head_count/2). תמיד שמור gift_low ≥ 400×head_count.
 
-ברירות מחדל לזוג (head_count=2) — סך המעטפה, כולן ≥ 800:
-  family_immediate:     2800 (טווח 2200-4500)
-  family_close:         1800 (טווח 1400-3000)
-  family_extended:      1100 (טווח 900-1500)
-  friends_bff:          1500 (טווח 1200-2200)
-  friends_close:        1300 (טווח 1100-1800)
-  friends:              1000 (טווח 900-1300)
-  friends_acquaintance:  900 (טווח 800-1100)
-  work_close:           1100 (טווח 900-1500)
-  work:                  900 (טווח 800-1100)
-  work_boss:            1400 (טווח 1200-2000)
-  parents_friends:      1200 (טווח 1000-1600)
-  neighbors:            1000 (טווח 800-1300)
-  abroad:               1000 (טווח 800-1500)
+תיוג: הורה/אח/בן→family_immediate. סבא/דוד→family_close. בן דוד→family_extended. חבר נפש→friends_bff. צבא/ילדות→friends_close. אוני/חוג→friends. מכר→friends_acquaintance. צוות קרוב→work_close. קולגה→work. בוס/בכיר→work_boss. חבר של ההורים→parents_friends. שכן→neighbors. חו״ל→abroad. "לא בקשר"→הורד הגעה 30-50%, confidence=low. ללא הקשר→friends, confidence=low.
 
-ברירות מחדל למשפחה (head_count>=3):
-  הכפל את ערכי הזוג ב־(head_count/2), עגל ל־100 הקרוב, ושמור על רצפה של 400 × head_count.
-  דוגמה: family_close עם head_count=4 → 1800 × 2 = 3600 (טווח 2800-6000), רצפה 1600.
-  דוגמה: friends עם head_count=4 → 1000 × 2 = 2000 (טווח 1800-2600), רצפה 1600.
-
-כללי תיוג קטגוריה — בחר את הקטגוריה הצרה והמדויקת ביותר:
-- "הורה/אבא/אמא/אח/אחות/בן/בת" של החתן או הכלה → family_immediate.
-- "סבא/סבתא/דוד/דודה" → family_close.
-- "בן דוד/בת דודה/קרוב רחוק" → family_extended.
-- "חבר נפש/הכי טוב/הכי קרוב/אחי" → friends_bff.
-- "צבא/יחידה/פלוגה/חברים מהילדות/מהבי״ס/חברה טובה" → friends_close.
-- "חבר רגיל/מהאוניברסיטה/מהחוג" → friends.
-- "מכר/חבר רחוק/לא ממש בקשר/פעם בשנה" → friends_acquaintance.
-- "הצוות שלי/הקבוצה הקרובה בעבודה/שותף לפרויקט" → work_close.
-- "מהמשרד/קולגה/החברה" → work.
-- "המנהל/הבוס/סמנכ״ל/מנכ״ל/בכיר" → work_boss.
-- "חבר של אבא/חברה של אמא/מהשכונה של ההורים" → parents_friends.
-- "שכן/מהבניין/מהרחוב" → neighbors.
-- "מחו״ל/בארה״ב/אירופה/לא בארץ" → abroad.
-- "רחוקים/לא בקשר/אולי לא יגיע" בלי הקשר חו״ל → הורד הגעה ב־30-50%, confidence=low.
-- אם אין הקשר ברור — confidence=low, השתמש ב־friends כברירת מחדל.
-
-החזר JSON בלבד.`;
+JSON בלבד, ללא markdown.`;
 
 const CHAT_SYSTEM = `אתה יועץ חתונה אישי לנדב וליטל. החתונה שלהם מתקרבת.
 בכל הודעה תקבל תמונת מצב מלאה ועדכנית של תכנון החתונה (הוצאות, מקדמות, מי שילם, אורחים, צ'קליסט, ימים שנותרו, מדד צרכן).
@@ -158,10 +97,9 @@ async function handleClassify(body: { name?: string; note?: string }, apiKey: st
     body: JSON.stringify({
       model: HAIKU,
       max_tokens: 500,
-      // Prompt caching: the system block is constant and large (~3.5K tokens with
-      // 13 categories). Marking it ephemeral lets Anthropic serve it from cache at
-      // ~10% of the input-token rate for 5 minutes, which is what makes bulk CSV
-      // imports survive the 50K tokens/min rate limit.
+      // Prompt caching keeps the constant system block in Anthropic's cache for
+      // ~5min at 10% input-token rate — required to survive 50K tokens/min on
+      // bulk CSV imports of 200+ guests.
       system: [
         { type: "text", text: CLASSIFY_SYSTEM, cache_control: { type: "ephemeral" } },
       ],
