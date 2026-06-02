@@ -922,7 +922,7 @@ export default function WeddingSimulator() {
         return actions.sort((a, b) => order[a.urgency] - order[b.urgency]).slice(0, 8);
     }, [smartChecklistItems, fixedExpenses, daysLeft]);
 
-    // Advances breakdown — only advances paid by Nadav / Lital
+    // Advances breakdown — advances paid by Nadav / Lital / shared
     const advancePayerBreakdown = useMemo(() => {
         const totals: Record<AdvancePayer | 'לא משויך', number> = {
             'נדב': 0,
@@ -934,7 +934,7 @@ export default function WeddingSimulator() {
             const adv = Number(e.advance) || 0;
             if (adv <= 0) continue;
             const payer = e.advance_paid_by;
-            if (payer === 'נדב' || payer === 'ליטל') {
+            if (payer === 'נדב' || payer === 'ליטל' || payer === 'משותף') {
                 totals[payer] += adv;
             }
         }
@@ -2523,17 +2523,26 @@ export default function WeddingSimulator() {
                                     {fixedExpenses.filter(e => Number(e.advance) > 0).length === 0 && (
                                         <p className="text-sm text-slate-400 italic py-2">אין מקדמות עדיין</p>
                                     )}
-                                    {(advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל']) > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                                            {(['נדב', 'ליטל'] as const).map(payer => (
-                                                advancePayerBreakdown[payer] > 0 && (
-                                                    <span key={payer} className="text-slate-500">
-                                                        {payer}: <span className="font-semibold text-[#333333]">{formatMoney(advancePayerBreakdown[payer])}</span>
-                                                    </span>
-                                                )
-                                            ))}
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const shared = advancePayerBreakdown['משותף'];
+                                        // Shared advances split equally between Nadav and Lital
+                                        const perPayer = {
+                                            'נדב': advancePayerBreakdown['נדב'] + shared / 2,
+                                            'ליטל': advancePayerBreakdown['ליטל'] + shared / 2,
+                                        };
+                                        if (perPayer['נדב'] + perPayer['ליטל'] <= 0) return null;
+                                        return (
+                                            <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                                                {(['נדב', 'ליטל'] as const).map(payer => (
+                                                    perPayer[payer] > 0 && (
+                                                        <span key={payer} className="text-slate-500">
+                                                            {payer}: <span className="font-semibold text-[#333333]">{formatMoney(perPayer[payer])}</span>
+                                                        </span>
+                                                    )
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                     {calculations.remainingFixedPayments > 0 && (
                                         <>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4 mb-2 pt-2">יתרות לתשלום ביום האירוע</p>
