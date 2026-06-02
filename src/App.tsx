@@ -1646,8 +1646,10 @@ export default function WeddingSimulator() {
 
                             {/* Payer breakdown — who paid advances so far */}
                             {(() => {
-                                const nadav = advancePayerBreakdown['נדב'];
-                                const lital = advancePayerBreakdown['ליטל'];
+                                const shared = advancePayerBreakdown['משותף'];
+                                // Shared advances are split equally and added to both Nadav and Lital
+                                const nadav = advancePayerBreakdown['נדב'] + shared / 2;
+                                const lital = advancePayerBreakdown['ליטל'] + shared / 2;
                                 const totalPaid = nadav + lital;
                                 if (totalPaid === 0) return null;
                                 const seg = (v: number) => totalPaid ? (v / totalPaid) * 100 : 0;
@@ -1673,6 +1675,11 @@ export default function WeddingSimulator() {
                                                 </span>
                                             )}
                                         </div>
+                                        {shared > 0 && (
+                                            <p className="mt-2 text-[11px] text-slate-400">
+                                                כולל {formatMoney(shared)} משותף, מחולק שווה בשווה ({formatMoney(shared / 2)} לכל אחד)
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })()}
