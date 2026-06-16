@@ -513,18 +513,28 @@ export default function WeddingSimulator() {
 
     // Calculations
     const calculations = useMemo(() => {
-        // 1. Calculate Venue Cost based on Contract Tiers
-        // Minimum 225 guests commitment - even if fewer arrive, we pay for 225
-        const minVenueGuests = 225;
+        // 1. Calculate Venue Cost — contract pricing with the reduced 200-guest
+        // commitment (clause 11.1). Anchors:
+        //   • Original 225-guest contract base = 225 × 610 = 137,250 ₪ (advances + parents' gift stay on this).
+        //   • Reduction credit = 195 ₪ × (225 − 200) = 4,875 ₪ (clause 11.1 — 195/head, NOT the 610 plate price).
+        //   • Committed base for the 200 guests = 137,250 − 4,875 = 132,375 ₪ — the floor we pay even if fewer arrive.
+        // Guests above the 200 commitment are billed per contract:
+        //   201–249 → 555 ₪ each (clause 2.4 + 3.2); 250+ → first 250 repriced to 586 ₪ (clause 11.5), rest at 555 ₪.
+        const venueBaseContractValue = venueAdvanceFixedGuests * venueAdvanceFixedRate; // 225 × 610 = 137,250
+        const reducedCommitmentGuests = 200;
+        const venueReductionCredit = Math.max(0, venueAdvanceFixedGuests - reducedCommitmentGuests) * 195; // 4,875
+        const committedBase = venueBaseContractValue - venueReductionCredit; // 132,375 — base for the 200 commitment
+
         let venueCost = 0;
         let costBreakdown = '';
-        const effectiveVenueGuests = Math.max(guests, minVenueGuests);
-
-        if (effectiveVenueGuests < 250) {
-            venueCost = effectiveVenueGuests * 610;
-            costBreakdown = guests < minVenueGuests
-                ? `מינימום התחייבות: ${minVenueGuests} אורחים לפי 610 ₪ למנה (${guests} מגיעים בפועל)`
-                : `${effectiveVenueGuests} אורחים לפי 610 ₪ למנה`;
+        if (guests < 250) {
+            const extraGuests = Math.max(0, guests - reducedCommitmentGuests);
+            venueCost = committedBase + extraGuests * 555;
+            costBreakdown = extraGuests > 0
+                ? `התחייבות ${reducedCommitmentGuests} אורחים (${committedBase.toLocaleString()} ₪) + ${extraGuests} נוספים לפי 555 ₪ (${(extraGuests * 555).toLocaleString()} ₪)`
+                : guests < reducedCommitmentGuests
+                    ? `מינימום התחייבות: ${reducedCommitmentGuests} אורחים (${guests} מגיעים בפועל)`
+                    : `${reducedCommitmentGuests} אורחים לפי התחייבות`;
         } else {
             const baseCost = 250 * 586;
             const extraGuests = guests - 250;
@@ -533,7 +543,6 @@ export default function WeddingSimulator() {
             costBreakdown = `250 ראשונים לפי 586 ₪ (${baseCost.toLocaleString()} ₪) + ${extraGuests} נוספים לפי 555 ₪ (${extraCost.toLocaleString()} ₪)`;
         }
 
-        const venueBaseContractValue = venueAdvanceFixedGuests * venueAdvanceFixedRate;
         const venueAdvance1 = venueBaseContractValue * (venueAdvance1Percent / 100);
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
@@ -565,6 +574,7 @@ export default function WeddingSimulator() {
         // 3. Total Expenses — couple pays the full venue cost (CPI-adjusted).
         // Parents cap their contribution at the base contract (137,250); any
         // overage from indexation or extra meals falls on the couple.
+        // venueCost already nets the clause-11.1 reduction credit (folded into committedBase).
         const totalExpenses = totalFixed + adjustedVenueCost;
         const venueOverage = Math.max(0, adjustedVenueCost - venueBaseContractValue);
 
@@ -617,6 +627,7 @@ export default function WeddingSimulator() {
 
         return {
             venueCost, adjustedVenueCost, venueBaseContractValue, venueOverage,
+            reducedCommitmentGuests, venueReductionCredit, committedBase,
             venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
@@ -2037,12 +2048,18 @@ export default function WeddingSimulator() {
                                         {guests < 250 ? (
                                             <div className="space-y-2 text-sm">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-slate-600">{Math.max(guests, 225)} מנות × 610 ₪</span>
-                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(Math.max(guests, 225) * 610)}</span>
+                                                    <span className="text-slate-600">התחייבות {calculations.reducedCommitmentGuests} מנות (כולל זיכוי סעיף 11.1)</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(calculations.committedBase)}</span>
                                                 </div>
-                                                {guests < 225 && (
+                                                {guests > calculations.reducedCommitmentGuests && (
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-slate-600">{guests - calculations.reducedCommitmentGuests} מנות נוספות × 555 ₪</span>
+                                                        <span className="font-bold text-[#1F1A1A]">{formatMoney((guests - calculations.reducedCommitmentGuests) * 555)}</span>
+                                                    </div>
+                                                )}
+                                                {guests < calculations.reducedCommitmentGuests && (
                                                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                                                        ⚠️ מינימום החוזה: 225 מנות. {guests} מגיעים בפועל — נשלם על {225 - guests} מנות שלא יאכלו.
+                                                        ⚠️ מינימום החוזה: {calculations.reducedCommitmentGuests} מנות. {guests} מגיעים בפועל — נשלם על {calculations.reducedCommitmentGuests - guests} מנות שלא יאכלו.
                                                     </p>
                                                 )}
                                             </div>
@@ -2075,6 +2092,17 @@ export default function WeddingSimulator() {
                                                 <span className="font-bold text-slate-700">עלות בפועל:</span>
                                                 <span className="text-xl font-extrabold text-indigo-600">{formatMoney(Math.round(calculations.adjustedVenueCost))}</span>
                                             </div>
+                                            {calculations.venueReductionCredit > 0 && (
+                                                guests < 250 ? (
+                                                    <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-1">
+                                                        ✅ סוכם עם האולם להוריד את ההתחייבות מ-225 ל-{calculations.reducedCommitmentGuests} אורחים. הבסיס כבר כולל זיכוי של 195 ₪ למנה (סעיף 11.1) × {225 - calculations.reducedCommitmentGuests} = {formatMoney(calculations.venueReductionCredit)} ₪. אורחים מעל {calculations.reducedCommitmentGuests} מחויבים ב-555 ₪ למנה.
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                                                        ⚠️ מעל 250 אורחים — חל תמחור סעיף 11.5 (250 הראשונים ב-586 ₪ ומעבר לכך 555 ₪), והזיכוי על הפחתת ההתחייבות אינו חל יותר.
+                                                    </p>
+                                                )
+                                            )}
                                         </div>
                                     </div>
 
