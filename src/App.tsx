@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, Heart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Lock, ArrowUpRight, ArrowDownRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown, Sparkles, Loader2, Search } from 'lucide-react';
+import { Users, Plus, Trash2, Heart, Wallet, ShieldAlert, CalendarHeart, Receipt, CheckCircle2, Circle, Clock, Lock, ArrowUpRight, RefreshCw, MessageCircle, AlarmClock, Home, ListChecks, Settings, X, ChevronDown, Sparkles, Loader2, Search } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface Expense {
@@ -162,15 +162,6 @@ const giftDefaultsForHeads = (category: GuestCategory, heads: number): { attenda
     };
 };
 
-interface CpiData {
-    baseCpi: number;       // CPI at contract signing (Jan 2026)
-    currentCpi: number;    // Latest CPI
-    currentMonth: string;  // e.g. "ינואר 2026"
-    changePercent: number; // % change
-    loading: boolean;
-    error: string | null;
-}
-
 // Emoji mapping for expense names
 const getExpenseEmoji = (name: string): string => {
     const lower = name.toLowerCase();
@@ -299,16 +290,9 @@ export default function WeddingSimulator() {
     const venueAdvanceFixedGuests = 225;
     const venueAdvanceFixedRate = 610;
 
-    // CPI Indexation State
-    const VENUE_CONTRACT_BASE_CPI = 103.3; // January 2026 — last CPI published before contract signing (24.2.2026)
-    const [cpiData, setCpiData] = useState<CpiData>({
-        baseCpi: VENUE_CONTRACT_BASE_CPI,
-        currentCpi: VENUE_CONTRACT_BASE_CPI,
-        currentMonth: 'ינואר 2026',
-        changePercent: 0,
-        loading: true,
-        error: null,
-    });
+    // CPI Indexation — fixed final amount agreed with the venue (no live index API).
+    // Settled in a single payment together with the post-wedding balance.
+    const VENUE_CPI_FIXED_AMOUNT = 1408; // ₪ — final, no longer derived from the CPI feed
 
     // Safety Buffer State
     const [useSafetyBuffer, setSafetyBuffer] = useState(true);
@@ -466,40 +450,6 @@ export default function WeddingSimulator() {
         }
     }, [isAuthenticated, configId]);
 
-    // Fetch CPI data from CBS via Supabase Edge Function
-    useEffect(() => {
-        const fetchCpi = async () => {
-            try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const res = await fetch(`${supabaseUrl}/functions/v1/cpi-proxy`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-
-                const dates = data?.month?.[0]?.date;
-                if (!dates || dates.length === 0) throw new Error('No CPI data returned');
-
-                // Latest CPI is the first entry
-                const latest = dates[0];
-                const currentCpi = latest.currBase.value;
-                const currentMonth = `${latest.monthDesc} ${latest.year}`;
-                const baseCpi = VENUE_CONTRACT_BASE_CPI;
-                const changePercent = ((currentCpi - baseCpi) / baseCpi) * 100;
-
-                setCpiData({
-                    baseCpi,
-                    currentCpi,
-                    currentMonth,
-                    changePercent,
-                    loading: false,
-                    error: null,
-                });
-            } catch (err: any) {
-                setCpiData(prev => ({ ...prev, loading: false, error: err.message || 'שגיאה בטעינת מדד' }));
-            }
-        };
-        fetchCpi();
-    }, []);
-
     // Update remote config helper
     const updateConfig = async (field: string, value: any) => {
         if (!configId) return;
@@ -513,17 +463,17 @@ export default function WeddingSimulator() {
 
     // Calculations
     const calculations = useMemo(() => {
-        // 1. Calculate Venue Cost — contract pricing with the reduced 200-guest
+        // 1. Calculate Venue Cost — contract pricing with the reduced 185-guest
         // commitment (clause 11.1). Anchors:
         //   • Original 225-guest contract base = 225 × 610 = 137,250 ₪ (advances + parents' gift stay on this).
-        //   • Reduction credit = 195 ₪ × (225 − 200) = 4,875 ₪ (clause 11.1 — 195/head, NOT the 610 plate price).
-        //   • Committed base for the 200 guests = 137,250 − 4,875 = 132,375 ₪ — the floor we pay even if fewer arrive.
-        // Guests above the 200 commitment are billed per contract:
-        //   201–249 → 555 ₪ each (clause 2.4 + 3.2); 250+ → first 250 repriced to 586 ₪ (clause 11.5), rest at 555 ₪.
+        //   • Reduction credit = 195 ₪ × (225 − 185) = 7,800 ₪ (clause 11.1 — 195/head, NOT the 610 plate price).
+        //   • Committed base for the 185 guests = 137,250 − 7,800 = 129,450 ₪ — the floor we pay even if fewer arrive.
+        // Guests above the 185 commitment are billed per contract:
+        //   186–249 → 555 ₪ each (clause 2.4 + 3.2); 250+ → first 250 repriced to 586 ₪ (clause 11.5), rest at 555 ₪.
         const venueBaseContractValue = venueAdvanceFixedGuests * venueAdvanceFixedRate; // 225 × 610 = 137,250
-        const reducedCommitmentGuests = 200;
-        const venueReductionCredit = Math.max(0, venueAdvanceFixedGuests - reducedCommitmentGuests) * 195; // 4,875
-        const committedBase = venueBaseContractValue - venueReductionCredit; // 132,375 — base for the 200 commitment
+        const reducedCommitmentGuests = 185;
+        const venueReductionCredit = Math.max(0, venueAdvanceFixedGuests - reducedCommitmentGuests) * 195; // 7,800
+        const committedBase = venueBaseContractValue - venueReductionCredit; // 129,450 — base for the 185 commitment
 
         let venueCost = 0;
         let costBreakdown = '';
@@ -547,18 +497,11 @@ export default function WeddingSimulator() {
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
 
-        // CPI Indexation (contract clause 3.4) — applies to the FULL venue cost
-        // (base contract + any extra-guest charges), settled in a single payment
-        // together with the final balance after the wedding. Cap: above 1% of
-        // the total, the excess is reduced by 50% → capped = 1% + 50% × (|raw| − 1%),
-        // preserving sign.
+        // CPI Indexation (contract clause 3.4) — fixed final amount agreed with the
+        // venue (1,408 ₪). No longer derived from the live CPI feed; settled in a
+        // single payment together with the final balance after the wedding.
         const venueRemainder = venueCost - venueAdvance;
-        const cpiChangeRatio = (cpiData.currentCpi - cpiData.baseCpi) / cpiData.baseCpi;
-        const rawIndexation = venueCost * cpiChangeRatio;
-        const onePercentThreshold = venueCost * 0.01;
-        const indexationCapped = Math.abs(rawIndexation) > onePercentThreshold
-            ? Math.sign(rawIndexation) * (onePercentThreshold + (Math.abs(rawIndexation) - onePercentThreshold) * 0.5)
-            : rawIndexation;
+        const indexationCapped = VENUE_CPI_FIXED_AMOUNT;
         const adjustedVenueRemainder = venueRemainder + indexationCapped;
         // CPI-adjusted total venue cost — this is what parents actually pay
         const adjustedVenueCost = venueCost + indexationCapped;
@@ -636,7 +579,7 @@ export default function WeddingSimulator() {
             totalAdvancesPaid, remainingToPay, costPerGuest, breakEvenAvgGift, incomeProgress,
             scenarios, expenseCategories, totalFixedAdvances, remainingFixedPayments,
         };
-    }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent, cpiData]);
+    }, [guests, avgGift, fixedExpenses, nadavMomGift, venueAdvance1Percent, venueAdvance2Percent, useSafetyBuffer, invitedGuests, noShowPercent]);
 
     // Aggregated forecast from the per-guest list (replaces flat invitedGuests × avgGift when list is non-empty)
     const guestForecast = useMemo(() => {
@@ -1815,73 +1758,27 @@ export default function WeddingSimulator() {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">הצמדה למדד</p>
                                         <h2 className="text-xl font-bold text-[#1F1A1A] tracking-tight">מדד המחירים לצרכן</h2>
                                     </div>
-                                    {cpiData.loading ? (
-                                        <RefreshCw size={14} className="text-slate-400 animate-spin mt-2" />
-                                    ) : !cpiData.error && (
-                                        <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">{cpiData.currentMonth}</span>
-                                    )}
+                                    <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">סכום קבוע וסופי</span>
                                 </div>
 
-                                {cpiData.loading ? (
-                                    <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 p-6 rounded-2xl">
-                                        <RefreshCw size={14} className="animate-spin" />
-                                        <span>טוען נתוני מדד...</span>
+                                {/* Hero: fixed indexation amount */}
+                                <div className="rounded-[1.5rem] p-6 mb-3 border bg-gradient-to-br from-rose-50 to-rose-100/40 border-rose-100">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">סכום הצמדה סופי</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-5xl font-extrabold tracking-tight text-rose-700">
+                                            {formatMoney(calculations.indexationCapped)}
+                                        </span>
                                     </div>
-                                ) : cpiData.error ? (
-                                    <p className="text-sm text-rose-500 font-medium bg-rose-50 p-4 rounded-2xl">שגיאה: {cpiData.error}</p>
-                                ) : (
-                                    <>
-                                        {/* Hero: big change % */}
-                                        <div className={`rounded-[1.5rem] p-6 mb-3 border ${
-                                            cpiData.changePercent > 0 ? 'bg-gradient-to-br from-rose-50 to-rose-100/40 border-rose-100' :
-                                            cpiData.changePercent < 0 ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 border-emerald-100' :
-                                            'bg-slate-50 border-slate-100'
-                                        }`}>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">שינוי מאז חתימת החוזה</p>
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`text-5xl font-extrabold tracking-tight ${
-                                                    cpiData.changePercent > 0 ? 'text-rose-700' :
-                                                    cpiData.changePercent < 0 ? 'text-emerald-700' : 'text-slate-700'
-                                                }`}>
-                                                    {cpiData.changePercent > 0 ? '+' : ''}{cpiData.changePercent.toFixed(2)}%
-                                                </span>
-                                                {cpiData.changePercent > 0 ? (
-                                                    <ArrowUpRight size={26} className="text-rose-500" strokeWidth={2.5} />
-                                                ) : cpiData.changePercent < 0 ? (
-                                                    <ArrowDownRight size={26} className="text-emerald-500" strokeWidth={2.5} />
-                                                ) : null}
-                                            </div>
-                                            <p className="text-xs text-slate-500 mt-2 font-medium">
-                                                {cpiData.baseCpi.toFixed(1)} <span className="text-slate-300 mx-1">·</span> ינואר 2026
-                                                <span className="text-slate-300 mx-2">→</span>
-                                                {cpiData.currentCpi.toFixed(1)} <span className="text-slate-300 mx-1">·</span> {cpiData.currentMonth}
-                                            </p>
-                                        </div>
+                                    <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+                                        סכום קבוע שסוכם מול האולם — לא מחושב לפי מדד חי. משולם יחד עם היתרה אחרי האירוע.
+                                    </p>
+                                </div>
 
-                                        {/* Indexation amount (only if non-zero) */}
-                                        {calculations.indexationCapped !== 0 && (
-                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-slate-600 font-medium">
-                                                        סכום הצמדה {Math.abs(cpiData.changePercent) > 1 && <span className="text-[10px] text-slate-400">(מעל 1% — 50%)</span>}
-                                                    </span>
-                                                    <span className={`font-bold text-base ${calculations.indexationCapped > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                        {calculations.indexationCapped > 0 ? '+' : ''}{formatMoney(Math.round(calculations.indexationCapped))}
-                                                    </span>
-                                                </div>
-                                                {Math.abs(cpiData.changePercent) > 1 && (
-                                                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">לפי סעיף 3.4 — ההצמדה מחושבת על הסכום הכולל של האירוע (כולל תוספות אורחים). עד 1% מהסכום משלמים מלא, ומעבר לכך 50% מהיתרה. משולם יחד עם היתרה אחרי האירוע</p>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Final payment hero */}
-                                        <div className="bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] text-white rounded-[1.5rem] p-5 shadow-[0_12px_30px_rgba(255,77,127,0.25)]">
-                                            <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">תשלום אחרון + הצמדה</p>
-                                            <p className="text-3xl font-extrabold tracking-tight">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</p>
-                                        </div>
-                                    </>
-                                )}
+                                {/* Final payment hero */}
+                                <div className="bg-gradient-to-br from-[#FF4D7F] to-[#c42f52] text-white rounded-[1.5rem] p-5 shadow-[0_12px_30px_rgba(255,77,127,0.25)]">
+                                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">תשלום אחרון + הצמדה</p>
+                                    <p className="text-3xl font-extrabold tracking-tight">{formatMoney(Math.round(calculations.adjustedVenueRemainder))}</p>
+                                </div>
                             </div>
 
                         </motion.div>
