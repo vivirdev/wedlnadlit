@@ -493,6 +493,12 @@ export default function WeddingSimulator() {
             costBreakdown = `250 ראשונים לפי 586 ₪ (${baseCost.toLocaleString()} ₪) + ${extraGuests} נוספים לפי 555 ₪ (${extraCost.toLocaleString()} ₪)`;
         }
 
+        // Venue add-ons billed on top of the per-meal cost (stage + lighting).
+        // These count toward the same 137,250 ₪ pool the parents' checks cover —
+        // whatever the total ends up above that ceiling falls on the couple.
+        const venueStageLighting = 7000; // במה + תאורה
+        venueCost += venueStageLighting;
+
         const venueAdvance1 = venueBaseContractValue * (venueAdvance1Percent / 100);
         const venueAdvance2 = venueBaseContractValue * (venueAdvance2Percent / 100);
         const venueAdvance = venueAdvance1 + venueAdvance2;
@@ -570,7 +576,7 @@ export default function WeddingSimulator() {
 
         return {
             venueCost, adjustedVenueCost, venueBaseContractValue, venueOverage,
-            reducedCommitmentGuests, venueReductionCredit, committedBase,
+            reducedCommitmentGuests, venueReductionCredit, committedBase, venueStageLighting,
             venueAdvance1, venueAdvance2, venueAdvance,
             venueRemainder, indexationCapped, adjustedVenueRemainder,
             costBreakdown, baseFixed, safetyBufferAmount, totalFixed, totalExpenses,
@@ -1959,6 +1965,10 @@ export default function WeddingSimulator() {
                                                         ⚠️ מינימום החוזה: {calculations.reducedCommitmentGuests} מנות. {guests} מגיעים בפועל — נשלם על {calculations.reducedCommitmentGuests - guests} מנות שלא יאכלו.
                                                     </p>
                                                 )}
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">במה + תאורה</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(calculations.venueStageLighting)}</span>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="space-y-2 text-sm">
@@ -1969,6 +1979,10 @@ export default function WeddingSimulator() {
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-slate-600">{guests - 250} מנות נוספות × 555 ₪</span>
                                                     <span className="font-bold text-[#1F1A1A]">{formatMoney((guests - 250) * 555)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-600">במה + תאורה</span>
+                                                    <span className="font-bold text-[#1F1A1A]">{formatMoney(calculations.venueStageLighting)}</span>
                                                 </div>
                                             </div>
                                         )}
