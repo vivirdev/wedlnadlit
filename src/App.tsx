@@ -1604,42 +1604,64 @@ export default function WeddingSimulator() {
                                 );
                             })()}
 
-                            {/* Payer breakdown — who paid advances so far */}
+                            {/* Nadav / Lital split — what each already paid in advances vs. what's still left.
+                                The couple's real bill = vendor expenses (baseFixed, excl. the safety-buffer cushion)
+                                + the venue overage above the contract base the parents cover. Split 50/50; each
+                                person's "still to pay" = their half minus what they've already advanced. Shared and
+                                unassigned advances are credited 50/50 so the four numbers always tie to the total. */}
                             {(() => {
-                                const shared = advancePayerBreakdown['משותף'];
-                                // Shared advances are split equally and added to both Nadav and Lital
-                                const nadav = advancePayerBreakdown['נדב'] + shared / 2;
-                                const lital = advancePayerBreakdown['ליטל'] + shared / 2;
-                                const totalPaid = nadav + lital;
-                                if (totalPaid === 0) return null;
-                                const seg = (v: number) => totalPaid ? (v / totalPaid) * 100 : 0;
+                                const sharedAdv = advancePayerBreakdown['משותף'];
+                                const assignedAdv = advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + sharedAdv;
+                                const unassignedAdv = Math.max(0, calculations.totalFixedAdvances - assignedAdv);
+                                const splitEvenly = (sharedAdv + unassignedAdv) / 2;
+                                const nadavPaid = advancePayerBreakdown['נדב'] + splitEvenly;
+                                const litalPaid = advancePayerBreakdown['ליטל'] + splitEvenly;
+
+                                const coupleTotal = calculations.baseFixed + Math.round(calculations.venueOverage);
+                                if (coupleTotal <= 0) return null;
+                                const fairShare = coupleTotal / 2;
+                                const nadavRemaining = Math.max(0, fairShare - nadavPaid);
+                                const litalRemaining = Math.max(0, fairShare - litalPaid);
+                                const totalPaid = nadavPaid + litalPaid;
+                                const totalRemaining = Math.max(0, coupleTotal - totalPaid);
+
+                                const Person = ({ name, dot, paid, remaining }: { name: string; dot: string; paid: number; remaining: number }) => (
+                                    <div className="flex-1 bg-slate-50/70 rounded-xl p-4">
+                                        <p className="flex items-center gap-1.5 text-sm font-bold text-[#1F1A1A] mb-3">
+                                            <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />{name}
+                                        </p>
+                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-1.5">
+                                            <span>שולם במקדמות</span>
+                                            <span className="font-semibold text-slate-600">{formatMoney(paid)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-xs text-slate-500">נשאר לשלם</span>
+                                            <span className="text-lg font-extrabold text-[#FF4D7F]">{formatMoney(remaining)}</span>
+                                        </div>
+                                    </div>
+                                );
+
                                 return (
                                     <div className="md:col-span-2 bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">מקדמות נדב וליטל</p>
-                                            <p className="text-xs font-semibold text-slate-500">סה"כ {formatMoney(totalPaid)}</p>
-                                        </div>
-                                        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden flex" dir="ltr">
-                                            {nadav > 0 && <div className="h-full bg-sky-500" style={{ width: `${seg(nadav)}%` }} title={`נדב: ${formatMoney(nadav)}`} />}
-                                            {lital > 0 && <div className="h-full bg-pink-500" style={{ width: `${seg(lital)}%` }} title={`ליטל: ${formatMoney(lital)}`} />}
-                                        </div>
-                                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-                                            {nadav > 0 && (
-                                                <span className="flex items-center gap-1.5 text-slate-600">
-                                                    <span className="w-2 h-2 rounded-full bg-sky-500" />נדב <span className="font-bold text-[#1F1A1A]">{formatMoney(nadav)}</span>
-                                                </span>
-                                            )}
-                                            {lital > 0 && (
-                                                <span className="flex items-center gap-1.5 text-slate-600">
-                                                    <span className="w-2 h-2 rounded-full bg-pink-500" />ליטל <span className="font-bold text-[#1F1A1A]">{formatMoney(lital)}</span>
-                                                </span>
-                                            )}
-                                        </div>
-                                        {shared > 0 && (
-                                            <p className="mt-2 text-[11px] text-slate-400">
-                                                כולל {formatMoney(shared)} משותף, מחולק שווה בשווה ({formatMoney(shared / 2)} לכל אחד)
+                                        <div className="flex items-center justify-between mb-4">
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">חלוקה בין נדב וליטל</p>
+                                            <p className="text-xs font-semibold text-slate-500">
+                                                סה"כ עליכם {formatMoney(coupleTotal)} · שולם {formatMoney(totalPaid)}
                                             </p>
-                                        )}
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <Person name="נדב" dot="bg-sky-500" paid={nadavPaid} remaining={nadavRemaining} />
+                                            <Person name="ליטל" dot="bg-pink-500" paid={litalPaid} remaining={litalRemaining} />
+                                        </div>
+                                        <div className="mt-4 flex items-center justify-between bg-[#1F1A1A] text-white rounded-xl px-4 py-3">
+                                            <span className="text-xs font-bold uppercase tracking-widest text-white/60">נשאר לשלם בסה"כ</span>
+                                            <span className="text-xl font-extrabold tracking-tight">{formatMoney(totalRemaining)}</span>
+                                        </div>
+                                        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+                                            חלוקה 50/50 על בסיס הספקים{calculations.venueOverage > 0 ? ' + תוספת האולם מעל בסיס החוזה' : ''} (האולם הבסיסי על ההורים).
+                                            {(sharedAdv + unassignedAdv) > 0 && <> מקדמות משותפות ({formatMoney(sharedAdv + unassignedAdv)}) מחולקות שווה בשווה.</>}
+                                            {useSafetyBuffer && <> רזרבת הביטחון (10%) לא נכללת בחלוקה.</>}
+                                        </p>
                                     </div>
                                 );
                             })()}
@@ -2507,6 +2529,44 @@ export default function WeddingSimulator() {
                                     <span className="font-bold text-slate-700">סה"כ</span>
                                     <span className="text-xl font-extrabold text-[#FF4D7F]">{formatMoney(calculations.totalFixed + Math.round(calculations.venueOverage))}</span>
                                 </div>
+                                {/* Nadav / Lital split — paid in advances vs. still to pay (same 50/50 model as the home card) */}
+                                {(() => {
+                                    const sharedAdv = advancePayerBreakdown['משותף'];
+                                    const assignedAdv = advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + sharedAdv;
+                                    const unassignedAdv = Math.max(0, calculations.totalFixedAdvances - assignedAdv);
+                                    const splitEvenly = (sharedAdv + unassignedAdv) / 2;
+                                    const nadavPaid = advancePayerBreakdown['נדב'] + splitEvenly;
+                                    const litalPaid = advancePayerBreakdown['ליטל'] + splitEvenly;
+                                    const coupleTotal = calculations.baseFixed + Math.round(calculations.venueOverage);
+                                    if (coupleTotal <= 0) return null;
+                                    const fairShare = coupleTotal / 2;
+                                    const rows = [
+                                        { name: 'נדב', dot: 'bg-sky-500', paid: nadavPaid, remaining: Math.max(0, fairShare - nadavPaid) },
+                                        { name: 'ליטל', dot: 'bg-pink-500', paid: litalPaid, remaining: Math.max(0, fairShare - litalPaid) },
+                                    ];
+                                    return (
+                                        <div className="mt-4 bg-slate-50/70 rounded-2xl p-4">
+                                            <div className="flex items-center justify-between mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                <span>חלוקה בין נדב וליטל</span>
+                                                <span className="normal-case tracking-normal text-slate-500 font-semibold">שולם · נשאר</span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {rows.map(r => (
+                                                    <div key={r.name} className="flex items-center justify-between text-sm">
+                                                        <span className="flex items-center gap-1.5 font-semibold text-[#1F1A1A]">
+                                                            <span className={`w-2.5 h-2.5 rounded-full ${r.dot}`} />{r.name}
+                                                        </span>
+                                                        <span className="flex items-baseline gap-2">
+                                                            <span className="text-xs text-slate-400">{formatMoney(r.paid)}</span>
+                                                            <span className="text-slate-300">·</span>
+                                                            <span className="font-extrabold text-[#FF4D7F]">{formatMoney(r.remaining)}</span>
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* CARD 3: Simulator (manual sliders) */}
