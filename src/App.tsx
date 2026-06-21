@@ -1604,64 +1604,91 @@ export default function WeddingSimulator() {
                                 );
                             })()}
 
-                            {/* Nadav / Lital split — what each already paid in advances vs. what's still left.
-                                The couple's real bill = vendor expenses (baseFixed, excl. the safety-buffer cushion)
-                                + the venue overage above the contract base the parents cover. Split 50/50; each
-                                person's "still to pay" = their half minus what they've already advanced. Shared and
-                                unassigned advances are credited 50/50 so the four numbers always tie to the total. */}
+                            {/* Couple payment summary — you pay together, so this is one shared total:
+                                what you owe, what's already been paid in advances, and what's still left.
+                                The real bill = vendor expenses (baseFixed, excl. the safety-buffer cushion)
+                                + the venue overage above the contract base the parents cover. Advances are
+                                still broken down by who paid (Nadav / Lital / shared) — for your own tracking,
+                                not as a split of who owes what. */}
                             {(() => {
-                                const sharedAdv = advancePayerBreakdown['משותף'];
-                                const assignedAdv = advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + sharedAdv;
-                                const unassignedAdv = Math.max(0, calculations.totalFixedAdvances - assignedAdv);
-                                const splitEvenly = (sharedAdv + unassignedAdv) / 2;
-                                const nadavPaid = advancePayerBreakdown['נדב'] + splitEvenly;
-                                const litalPaid = advancePayerBreakdown['ליטל'] + splitEvenly;
-
                                 const coupleTotal = calculations.baseFixed + Math.round(calculations.venueOverage);
                                 if (coupleTotal <= 0) return null;
-                                const fairShare = coupleTotal / 2;
-                                const nadavRemaining = Math.max(0, fairShare - nadavPaid);
-                                const litalRemaining = Math.max(0, fairShare - litalPaid);
-                                const totalPaid = nadavPaid + litalPaid;
+                                const totalPaid = calculations.totalFixedAdvances;
                                 const totalRemaining = Math.max(0, coupleTotal - totalPaid);
-
-                                const Person = ({ name, dot, paid, remaining }: { name: string; dot: string; paid: number; remaining: number }) => (
-                                    <div className="flex-1 bg-slate-50/70 rounded-xl p-4">
-                                        <p className="flex items-center gap-1.5 text-sm font-bold text-[#1F1A1A] mb-3">
-                                            <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />{name}
-                                        </p>
-                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-1.5">
-                                            <span>שולם במקדמות</span>
-                                            <span className="font-semibold text-slate-600">{formatMoney(paid)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-xs text-slate-500">נשאר לשלם</span>
-                                            <span className="text-lg font-extrabold text-[#FF4D7F]">{formatMoney(remaining)}</span>
-                                        </div>
-                                    </div>
-                                );
+                                const sharedAdv = advancePayerBreakdown['משותף'];
+                                const byNadav = advancePayerBreakdown['נדב'];
+                                const byLital = advancePayerBreakdown['ליטל'];
 
                                 return (
                                     <div className="md:col-span-2 bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
                                         <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">חלוקה בין נדב וליטל</p>
-                                            <p className="text-xs font-semibold text-slate-500">
-                                                סה"כ עליכם {formatMoney(coupleTotal)} · שולם {formatMoney(totalPaid)}
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">כמה נשאר לכם לשלם</p>
+                                            <p className="text-xs font-semibold text-slate-500">סה"כ עליכם {formatMoney(coupleTotal)}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-slate-50/70 rounded-xl p-4">
+                                                <p className="text-xs text-slate-500 mb-1">שולם במקדמות</p>
+                                                <p className="text-lg font-extrabold text-slate-600">{formatMoney(totalPaid)}</p>
+                                            </div>
+                                            <div className="bg-[#FFE5ED]/50 rounded-xl p-4">
+                                                <p className="text-xs text-slate-500 mb-1">נשאר לשלם</p>
+                                                <p className="text-lg font-extrabold text-[#FF4D7F]">{formatMoney(totalRemaining)}</p>
+                                            </div>
+                                        </div>
+                                        {totalPaid > 0 && (byNadav > 0 || byLital > 0 || sharedAdv > 0) && (
+                                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
+                                                <span className="font-semibold text-slate-400 uppercase tracking-widest">מתוך המקדמות:</span>
+                                                {byNadav > 0 && <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-sky-500" />נדב <span className="font-bold text-[#1F1A1A]">{formatMoney(byNadav)}</span></span>}
+                                                {byLital > 0 && <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-500" />ליטל <span className="font-bold text-[#1F1A1A]">{formatMoney(byLital)}</span></span>}
+                                                {sharedAdv > 0 && <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" />משותף <span className="font-bold text-[#1F1A1A]">{formatMoney(sharedAdv)}</span></span>}
+                                            </div>
+                                        )}
+                                        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+                                            על בסיס הספקים{calculations.venueOverage > 0 ? ' + תוספת האולם מעל בסיס החוזה' : ''} (האולם הבסיסי על ההורים).
+                                            {useSafetyBuffer && <> רזרבת הביטחון (10%) לא נכללת.</>}
+                                        </p>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* End-of-event cash — income side. What you actually walk away with at the event:
+                                guest gifts received MINUS only the expenses still left to pay. Advances were paid
+                                out of pocket before the event, so they're not subtracted again here. */}
+                            {(() => {
+                                const coupleTotal = calculations.baseFixed + Math.round(calculations.venueOverage);
+                                if (coupleTotal <= 0 && calculations.guestsIncome <= 0) return null;
+                                const advancesPaid = calculations.totalFixedAdvances;
+                                const remainingExpenses = Math.max(0, coupleTotal - advancesPaid);
+                                const income = calculations.guestsIncome;
+                                const leftAtEvent = income - remainingExpenses;
+                                const aiIncome = guestForecast.totalGuests > 0 ? guestForecast.incomeMid : null;
+                                const aiLeft = aiIncome !== null ? aiIncome - remainingExpenses : null;
+                                const positive = leftAtEvent >= 0;
+                                return (
+                                    <div className={`md:col-span-2 rounded-2xl p-6 text-white relative overflow-hidden ${positive ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-slate-700 to-slate-900'} shadow-[0_12px_40px_rgba(16,185,129,0.18)]`}>
+                                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+                                        <div className="relative z-10">
+                                            <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-4">כמה יישאר לכם בסוף האירוע</p>
+                                            <div className="space-y-2.5">
+                                                <div className="flex justify-between items-center text-sm border-b border-white/15 pb-2.5">
+                                                    <span className="text-white/80">הכנסה צפויה מאורחים</span>
+                                                    <span className="font-semibold">+{formatMoney(income)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm border-b border-white/15 pb-2.5">
+                                                    <span className="text-white/80">יתרת הוצאות לתשלום</span>
+                                                    <span className="font-semibold">−{formatMoney(remainingExpenses)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-5 flex items-baseline justify-between">
+                                                <span className="text-sm font-bold text-white/80">יישאר לכם ביד</span>
+                                                <span className="text-3xl font-extrabold tracking-tight">{positive ? '+' : ''}{formatMoney(leftAtEvent)}</span>
+                                            </div>
+                                            <p className="mt-3 text-[11px] text-white/60 leading-relaxed">
+                                                {advancesPaid > 0 && <>כבר שולם {formatMoney(advancesPaid)} במקדמות מראש — לא נספר שוב כאן. </>}
+                                                ההורים מכסים את האולם הבסיסי בנפרד.
+                                                {aiLeft !== null && <> לפי רשימת האורחים (AI): ~{formatMoney(Math.round(aiLeft))}.</>}
                                             </p>
                                         </div>
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <Person name="נדב" dot="bg-sky-500" paid={nadavPaid} remaining={nadavRemaining} />
-                                            <Person name="ליטל" dot="bg-pink-500" paid={litalPaid} remaining={litalRemaining} />
-                                        </div>
-                                        <div className="mt-4 flex items-center justify-between bg-[#1F1A1A] text-white rounded-xl px-4 py-3">
-                                            <span className="text-xs font-bold uppercase tracking-widest text-white/60">נשאר לשלם בסה"כ</span>
-                                            <span className="text-xl font-extrabold tracking-tight">{formatMoney(totalRemaining)}</span>
-                                        </div>
-                                        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
-                                            חלוקה 50/50 על בסיס הספקים{calculations.venueOverage > 0 ? ' + תוספת האולם מעל בסיס החוזה' : ''} (האולם הבסיסי על ההורים).
-                                            {(sharedAdv + unassignedAdv) > 0 && <> מקדמות משותפות ({formatMoney(sharedAdv + unassignedAdv)}) מחולקות שווה בשווה.</>}
-                                            {useSafetyBuffer && <> רזרבת הביטחון (10%) לא נכללת בחלוקה.</>}
-                                        </p>
                                     </div>
                                 );
                             })()}
@@ -2529,41 +2556,19 @@ export default function WeddingSimulator() {
                                     <span className="font-bold text-slate-700">סה"כ</span>
                                     <span className="text-xl font-extrabold text-[#FF4D7F]">{formatMoney(calculations.totalFixed + Math.round(calculations.venueOverage))}</span>
                                 </div>
-                                {/* Nadav / Lital split — paid in advances vs. still to pay (same 50/50 model as the home card) */}
+                                {/* Combined remaining — you pay together, so this is one shared number */}
                                 {(() => {
-                                    const sharedAdv = advancePayerBreakdown['משותף'];
-                                    const assignedAdv = advancePayerBreakdown['נדב'] + advancePayerBreakdown['ליטל'] + sharedAdv;
-                                    const unassignedAdv = Math.max(0, calculations.totalFixedAdvances - assignedAdv);
-                                    const splitEvenly = (sharedAdv + unassignedAdv) / 2;
-                                    const nadavPaid = advancePayerBreakdown['נדב'] + splitEvenly;
-                                    const litalPaid = advancePayerBreakdown['ליטל'] + splitEvenly;
                                     const coupleTotal = calculations.baseFixed + Math.round(calculations.venueOverage);
                                     if (coupleTotal <= 0) return null;
-                                    const fairShare = coupleTotal / 2;
-                                    const rows = [
-                                        { name: 'נדב', dot: 'bg-sky-500', paid: nadavPaid, remaining: Math.max(0, fairShare - nadavPaid) },
-                                        { name: 'ליטל', dot: 'bg-pink-500', paid: litalPaid, remaining: Math.max(0, fairShare - litalPaid) },
-                                    ];
+                                    const totalPaid = calculations.totalFixedAdvances;
+                                    const totalRemaining = Math.max(0, coupleTotal - totalPaid);
                                     return (
-                                        <div className="mt-4 bg-slate-50/70 rounded-2xl p-4">
-                                            <div className="flex items-center justify-between mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                <span>חלוקה בין נדב וליטל</span>
-                                                <span className="normal-case tracking-normal text-slate-500 font-semibold">שולם · נשאר</span>
+                                        <div className="mt-4 bg-slate-50/70 rounded-2xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">נשאר לכם לשלם</p>
+                                                <p className="text-[11px] text-slate-400 mt-0.5">מתוך {formatMoney(coupleTotal)} · שולם {formatMoney(totalPaid)}</p>
                                             </div>
-                                            <div className="space-y-2">
-                                                {rows.map(r => (
-                                                    <div key={r.name} className="flex items-center justify-between text-sm">
-                                                        <span className="flex items-center gap-1.5 font-semibold text-[#1F1A1A]">
-                                                            <span className={`w-2.5 h-2.5 rounded-full ${r.dot}`} />{r.name}
-                                                        </span>
-                                                        <span className="flex items-baseline gap-2">
-                                                            <span className="text-xs text-slate-400">{formatMoney(r.paid)}</span>
-                                                            <span className="text-slate-300">·</span>
-                                                            <span className="font-extrabold text-[#FF4D7F]">{formatMoney(r.remaining)}</span>
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                            <span className="text-2xl font-extrabold text-[#FF4D7F] tracking-tight">{formatMoney(totalRemaining)}</span>
                                         </div>
                                     );
                                 })()}
